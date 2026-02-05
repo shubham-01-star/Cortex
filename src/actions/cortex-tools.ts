@@ -1,300 +1,324 @@
 "use server";
 
-import { readFile } from "node:fs/promises";
+import fs from "node:fs/promises";
 import path from "node:path";
-
-import Database from "better-sqlite3";
 
 type ReactFlowPosition = {
   x: number;
   y: number;
 };
 
-export type ReactFlowNode<TData> = {
+export type ReactFlowNode = {
   id: string;
   position: ReactFlowPosition;
-  data: TData;
+  data: {
+    label: string;
+    columns: string[];
+  };
 };
 
 export type ReactFlowEdge = {
   id: string;
   source: string;
   target: string;
-  label?: string;
-};
-
-type ModelNodeData = {
-  label: string;
-  columns: string[];
 };
 
 export type VisualizeSchemaResult = {
-  nodes: Array<ReactFlowNode<ModelNodeData>>;
-  edges: Array<ReactFlowEdge>;
+  nodes: ReactFlowNode[];
+  edges: ReactFlowEdge[];
+  source?: "prisma-dmmf" | "sqlite" | "setup-script";
   error?: string;
 };
 
-type ParsedModel = {
-  name: string;
-  fieldLines: string[];
-};
+function buildGridPositions(ids: string[]) {
+  const nodeWidth = 260;
+  const nodeHeight = 220;
+  const gutter = 40;
 
-type ParsedRelationField = {
-  fieldName: string;
-  targetModel: string;
-  relationName?: string;
-  isOwningSide: boolean;
-};
+  const cols = Math.max(1, Math.ceil(Math.sqrt(ids.length)));
 
-function readModelBlocks(schema: string): ParsedModel[] {
-  const models: ParsedModel[] = [];
-  const lines = schema.split(/\r?\n/);
+  return new Map(
+    ids.map((id, index) => {
+      const col = index % cols;
+      const row = Math.floor(index / cols);
 
-  let current: ParsedModel | null = null;
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-
-    if (!current) {
-      const match = /^model\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{$/.exec(line);
-      if (match) {
-        current = { name: match[1], fieldLines: [] };
-      }
-      continue;
-    }
-
-    if (line === "}") {
-      models.push(current);
-      current = null;
-      continue;
-    }
-
-    if (line.length === 0 || line.startsWith("//")) {
-      continue;
-    }
-
-    current.fieldLines.push(line);
-  }
-
-  return models;
-}
-
-function getBaseType(typeToken: string): string {
-  return typeToken.replace(/\[\]$/u, "").replace(/\?$/u, "");
-}
-
-function parseRelationName(fieldLine: string): string | undefined {
-  const relationCall = /@relation\(([^)]*)\)/u.exec(fieldLine);
-  if (!relationCall) return undefined;
-
-  const quoted = /"([^"]+)"/u.exec(relationCall[1]);
-  return quoted?.[1];
-}
-
-function parseModelFieldLine(
-  fieldLine: string,
-):
-  | { kind: "field"; fieldName: string; typeToken: string }
-  | { kind: "attribute" }
-  | { kind: "unknown" } {
-  if (fieldLine.startsWith("@@")) return { kind: "attribute" };
-
-  const tokens = fieldLine.split(/\s+/u);
-  if (tokens.length < 2) return { kind: "unknown" };
-
-  const [fieldName, typeToken] = tokens;
-  if (!fieldName || !typeToken) return { kind: "unknown" };
-
-  return { kind: "field", fieldName, typeToken };
-}
-
-function buildReactFlowGraphFromSchema(
-  schema: string,
-): Omit<VisualizeSchemaResult, "error"> {
-  const parsedModels = readModelBlocks(schema);
-  const modelNames = new Set(parsedModels.map((m) => m.name));
-
-  const nodes: Array<ReactFlowNode<ModelNodeData>> = parsedModels.map(
-    (model, index) => {
-      const columns: string[] = [];
-
-      for (const fieldLine of model.fieldLines) {
-        const parsed = parseModelFieldLine(fieldLine);
-        if (parsed.kind !== "field") continue;
-
-        const baseType = getBaseType(parsed.typeToken);
-        if (modelNames.has(baseType)) continue;
-
-        columns.push(parsed.fieldName);
-      }
-
-      return {
-        id: model.name,
-        position: {
-          x: (index % 4) * 260,
-          y: Math.floor(index / 4) * 160,
+      return [
+        id,
+        {
+          x: col * (nodeWidth + gutter),
+          y: row * (nodeHeight + gutter),
         },
-        data: {
-          label: model.name,
-          columns,
-        },
-      };
-    },
+      ] as const;
+    }),
   );
+}
 
-  const edges: ReactFlowEdge[] = [];
-  const emittedEdgeKeys = new Set<string>();
-  const emittedRelations = new Set<string>();
+async function visualizeFromPrismaDmmf(): Promise<Omit<
+  VisualizeSchemaResult,
+  "source"
+> | null> {
+  try {
+    const prismaModuleName: string = "@prisma/client";
+    const prismaClient = (await import(prismaModuleName)) as unknown;
 
-  for (const model of parsedModels) {
-    for (const fieldLine of model.fieldLines) {
-      const parsed = parseModelFieldLine(fieldLine);
-      if (parsed.kind !== "field") continue;
+    type PrismaDmmfModelField = {
+      name: string;
+      kind: string;
+      type: unknown;
+      relationName?: string | null;
+    };
 
-      const baseType = getBaseType(parsed.typeToken);
-      if (!modelNames.has(baseType)) continue;
+    type PrismaDmmfModel = {
+      name: string;
+      fields: PrismaDmmfModelField[];
+    };
 
-      const relationField: ParsedRelationField = {
-        fieldName: parsed.fieldName,
-        targetModel: baseType,
-        relationName: parseRelationName(fieldLine),
-        isOwningSide: /@relation\([^)]*\bfields\s*:/u.test(fieldLine),
+    type PrismaDmmf = {
+      datamodel?: {
+        models?: PrismaDmmfModel[];
       };
+    };
 
-      const label = relationField.relationName ?? relationField.fieldName;
+    const prismaDmmf = (prismaClient as { Prisma?: { dmmf?: PrismaDmmf } })
+      .Prisma?.dmmf;
+    const models = prismaDmmf?.datamodel?.models;
 
-      let source = model.name;
-      let target = relationField.targetModel;
-      let shouldEmit = true;
+    if (!models || !Array.isArray(models) || models.length === 0) {
+      return null;
+    }
 
-      if (!relationField.isOwningSide) {
-        const pair = [source, target].sort();
-        source = pair[0];
-        target = pair[1];
+    const modelNames = models.map((m) => m.name);
+    const positions = buildGridPositions(modelNames);
 
-        if (relationField.relationName) {
-          const relationKey = `${relationField.relationName}|${source}|${target}`;
-          shouldEmit = !emittedRelations.has(relationKey);
-          if (shouldEmit) emittedRelations.add(relationKey);
-        } else {
-          shouldEmit = model.name === source;
+    const nodes: ReactFlowNode[] = models.map((model) => ({
+      id: model.name,
+      position: positions.get(model.name) ?? { x: 0, y: 0 },
+      data: {
+        label: model.name,
+        columns: model.fields
+          .filter((f) => f.kind !== "object")
+          .map((f) => f.name),
+      },
+    }));
+
+    const edgesById = new Map<string, ReactFlowEdge>();
+
+    for (const model of models) {
+      for (const field of model.fields) {
+        if (field.kind !== "object") continue;
+        if (typeof field.type !== "string") continue;
+        if (!modelNames.includes(field.type)) continue;
+
+        const relationName =
+          typeof field.relationName === "string" &&
+          field.relationName.length > 0
+            ? field.relationName
+            : field.name;
+
+        const normalizedA = [model.name, field.type].sort().join("|");
+        const edgeId = `${normalizedA}:${relationName}`;
+
+        if (!edgesById.has(edgeId)) {
+          edgesById.set(edgeId, {
+            id: edgeId,
+            source: model.name,
+            target: field.type,
+          });
+        }
+      }
+    }
+
+    return { nodes, edges: Array.from(edgesById.values()) };
+  } catch {
+    return null;
+  }
+}
+
+async function visualizeFromSqliteDb(): Promise<Omit<
+  VisualizeSchemaResult,
+  "source"
+> | null> {
+  try {
+    const sqlitePath = path.join(process.cwd(), "sqlite.db");
+    await fs.access(sqlitePath);
+
+    const { default: Database } = await import("better-sqlite3");
+    const db = new Database(sqlitePath, { readonly: true });
+
+    try {
+      const tableNames = db
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+        )
+        .all() as Array<{ name: string }>;
+
+      const names = tableNames.map((r) => r.name);
+
+      if (names.length === 0) return null;
+
+      const positions = buildGridPositions(names);
+      const nodes: ReactFlowNode[] = names.map((table) => {
+        const columns = (
+          db
+            .prepare(`PRAGMA table_info(${JSON.stringify(table)})`)
+            .all() as Array<{ name: string }>
+        ).map((r) => r.name);
+
+        return {
+          id: table,
+          position: positions.get(table) ?? { x: 0, y: 0 },
+          data: { label: table, columns },
+        };
+      });
+
+      const edges: ReactFlowEdge[] = [];
+      for (const table of names) {
+        const fks = db
+          .prepare(`PRAGMA foreign_key_list(${JSON.stringify(table)})`)
+          .all() as Array<{ table: string; from: string; to: string }>;
+
+        for (const fk of fks) {
+          if (!names.includes(fk.table)) continue;
+          const edgeId = `${table}.${fk.from}->${fk.table}.${fk.to}`;
+          edges.push({ id: edgeId, source: table, target: fk.table });
         }
       }
 
-      if (!shouldEmit) continue;
-
-      const edge: ReactFlowEdge = {
-        id: `${source}-${target}-${label}`,
-        source,
-        target,
-        label,
-      };
-
-      const edgeKey = `${edge.source}|${edge.target}|${edge.label ?? ""}`;
-      if (emittedEdgeKeys.has(edgeKey)) continue;
-
-      emittedEdgeKeys.add(edgeKey);
-      edges.push(edge);
+      return { nodes, edges };
+    } finally {
+      db.close();
     }
+  } catch {
+    return null;
   }
-
-  return { nodes, edges };
 }
 
-function buildReactFlowGraphFromSqlite(
-  dbPath: string,
-): Omit<VisualizeSchemaResult, "error"> {
-  const db = new Database(dbPath);
+type SetupScriptTable = {
+  name: string;
+  columns: string[];
+  edges: Array<{ target: string; fromColumn: string; targetColumn: string }>;
+};
 
-  const quoteSqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
+function parseCreateTableStatements(sql: string): SetupScriptTable[] {
+  const createTableRegex =
+    /CREATE TABLE IF NOT EXISTS\s+([a-zA-Z0-9_]+)\s*\(([\s\S]*?)\);/g;
 
-  try {
-    const tables = db
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-      )
-      .all() as Array<{ name: string }>;
+  const tables: SetupScriptTable[] = [];
+  for (const match of sql.matchAll(createTableRegex)) {
+    const tableName = match[1];
+    const rawBody = match[2] ?? "";
+    const lines = rawBody
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
 
-    const nodes: Array<ReactFlowNode<ModelNodeData>> = tables.map(
-      (t, index) => {
-        const columns = db
-          .prepare(`PRAGMA table_info(${quoteSqlString(t.name)})`)
-          .all() as Array<{ name: string }>;
+    const columns: string[] = [];
+    const edges: SetupScriptTable["edges"] = [];
 
-        return {
-          id: t.name,
-          position: {
-            x: (index % 4) * 260,
-            y: Math.floor(index / 4) * 160,
-          },
-          data: {
-            label: t.name,
-            columns: columns.map((c) => c.name),
-          },
-        };
-      },
-    );
+    for (const line of lines) {
+      const cleaned = line.replace(/,$/, "");
+      if (cleaned.toUpperCase().startsWith("PRIMARY KEY")) continue;
+      if (cleaned.toUpperCase().startsWith("CONSTRAINT")) continue;
+      if (cleaned.toUpperCase().startsWith("FOREIGN KEY")) continue;
 
-    const edges: ReactFlowEdge[] = [];
-    const emitted = new Set<string>();
+      const colName = cleaned.split(/\s+/)[0];
+      if (!colName) continue;
+      columns.push(colName);
 
-    for (const t of tables) {
-      const foreignKeys = db
-        .prepare(`PRAGMA foreign_key_list(${quoteSqlString(t.name)})`)
-        .all() as Array<{ table: string; from: string; to: string }>;
-
-      for (const fk of foreignKeys) {
-        const label = `${fk.from} -> ${fk.to}`;
-        const edgeKey = `${t.name}|${fk.table}|${label}`;
-        if (emitted.has(edgeKey)) continue;
-
-        emitted.add(edgeKey);
+      const refMatch = /\bREFERENCES\s+([a-zA-Z0-9_]+)\s*\(([^)]+)\)/i.exec(
+        cleaned,
+      );
+      if (refMatch) {
         edges.push({
-          id: `${t.name}-${fk.table}-${fk.from}-${fk.to}`,
-          source: t.name,
-          target: fk.table,
-          label,
+          target: refMatch[1],
+          fromColumn: colName,
+          targetColumn: refMatch[2].trim(),
         });
       }
     }
 
-    return { nodes, edges };
-  } finally {
-    db.close();
+    tables.push({ name: tableName, columns, edges });
+  }
+
+  return tables;
+}
+
+async function visualizeFromSetupScript(): Promise<Omit<
+  VisualizeSchemaResult,
+  "source"
+> | null> {
+  try {
+    const setupScriptPath = path.join(
+      process.cwd(),
+      "scripts",
+      "setup-sqlite.mjs",
+    );
+    const setupScript = await fs.readFile(setupScriptPath, "utf8");
+
+    const schemaMatch = /const\s+schema\s*=\s*`([\s\S]*?)`;/m.exec(setupScript);
+
+    const sql = schemaMatch?.[1];
+    if (!sql) return null;
+
+    const tables = parseCreateTableStatements(sql);
+    if (tables.length === 0) return null;
+
+    const tableNames = tables.map((t) => t.name);
+    const positions = buildGridPositions(tableNames);
+
+    const nodes: ReactFlowNode[] = tables.map((t) => ({
+      id: t.name,
+      position: positions.get(t.name) ?? { x: 0, y: 0 },
+      data: {
+        label: t.name,
+        columns: t.columns,
+      },
+    }));
+
+    const edgesById = new Map<string, ReactFlowEdge>();
+    for (const table of tables) {
+      for (const edge of table.edges) {
+        if (!tableNames.includes(edge.target)) continue;
+        const edgeId = `${table.name}.${edge.fromColumn}->${edge.target}.${edge.targetColumn}`;
+        edgesById.set(edgeId, {
+          id: edgeId,
+          source: table.name,
+          target: edge.target,
+        });
+      }
+    }
+
+    return { nodes, edges: Array.from(edgesById.values()) };
+  } catch {
+    return null;
   }
 }
 
 export async function visualizeSchema(): Promise<VisualizeSchemaResult> {
-  const schemaPath = path.join(process.cwd(), "prisma", "schema.prisma");
-  const sqlitePath = path.join(process.cwd(), "sqlite.db");
-
   try {
-    const schema = await readFile(schemaPath, "utf8");
-    const { nodes, edges } = buildReactFlowGraphFromSchema(schema);
+    const prisma = await visualizeFromPrismaDmmf();
+    if (prisma) return { ...prisma, source: "prisma-dmmf" };
 
-    if (nodes.length === 0) {
-      return {
-        nodes,
-        edges,
-        error: `No Prisma models were detected in ${schemaPath}.`,
-      };
-    }
+    const sqlite = await visualizeFromSqliteDb();
+    if (sqlite) return { ...sqlite, source: "sqlite" };
 
-    return { nodes, edges };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-
-    try {
-      const { nodes, edges } = buildReactFlowGraphFromSqlite(sqlitePath);
-      if (nodes.length > 0) return { nodes, edges };
-    } catch {
-      // Ignore and return original Prisma schema error below.
-    }
+    const setupScript = await visualizeFromSetupScript();
+    if (setupScript) return { ...setupScript, source: "setup-script" };
 
     return {
       nodes: [],
       edges: [],
-      error: `Failed to read/parse Prisma schema at ${schemaPath}: ${message}`,
+      error:
+        "No schema could be loaded (missing Prisma DMMF, sqlite.db, and setup script schema).",
+    };
+  } catch (err) {
+    return {
+      nodes: [],
+      edges: [],
+      error:
+        err instanceof Error
+          ? err.message
+          : "Unknown error while generating schema visualization.",
     };
   }
 }
