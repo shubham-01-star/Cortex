@@ -72,7 +72,6 @@ CREATE TABLE IF NOT EXISTS orders (
 
 CREATE INDEX IF NOT EXISTS orders_amount_idx ON orders(amount);
 CREATE INDEX IF NOT EXISTS orders_createdAt_idx ON orders(createdAt);
-CREATE INDEX IF NOT EXISTS orders_customerId_idx ON orders(customerId);
 `;
 
 function init() {
