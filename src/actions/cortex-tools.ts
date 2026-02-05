@@ -496,15 +496,20 @@ export async function getStats(): Promise<GetStatsResult> {
   };
 }
 
-export type InviteMemberResult = {
-  success: true;
-  inviteLink: string;
-};
+export type InviteMemberResult =
+  | DeniedResult
+  | {
+      success: true;
+      inviteLink: string;
+    };
 
 export async function inviteMember(
   email: string,
   role: "ADMIN" | "VIEWER",
 ): Promise<InviteMemberResult> {
+  const denied = await denyUnlessAdmin();
+  if (denied) return denied;
+
   z.string().email().parse(email);
   z.enum(["ADMIN", "VIEWER"]).parse(role);
 
