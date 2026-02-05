@@ -54,6 +54,24 @@ CREATE TABLE IF NOT EXISTS verification (
     createdAt DATETIME,
     updatedAt DATETIME
 );
+
+CREATE TABLE IF NOT EXISTS customers (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS orders (
+    id TEXT PRIMARY KEY,
+    amount INTEGER NOT NULL,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    customerId TEXT REFERENCES customers(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS orders_amount_idx ON orders(amount);
+CREATE INDEX IF NOT EXISTS orders_createdAt_idx ON orders(createdAt);
 `;
 
 function init() {
