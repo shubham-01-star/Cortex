@@ -129,7 +129,11 @@ async function visualizeFromPrismaDmmf(): Promise<Omit<
     }
 
     return { nodes, edges: Array.from(edgesById.values()) };
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("visualizeFromPrismaDmmf failed", err);
+    }
+
     return null;
   }
 }
@@ -144,6 +148,8 @@ async function visualizeFromSqliteDb(): Promise<Omit<
 
     const { default: Database } = await import("better-sqlite3");
     const db = new Database(sqlitePath, { readonly: true });
+    const quoteSqlString = (value: string) =>
+      `'${value.replaceAll("'", "''")}'`;
 
     try {
       const tableNames = db
@@ -160,7 +166,7 @@ async function visualizeFromSqliteDb(): Promise<Omit<
       const nodes: ReactFlowNode[] = names.map((table) => {
         const columns = (
           db
-            .prepare(`PRAGMA table_info(${JSON.stringify(table)})`)
+            .prepare(`PRAGMA table_info(${quoteSqlString(table)})`)
             .all() as Array<{ name: string }>
         ).map((r) => r.name);
 
@@ -174,7 +180,7 @@ async function visualizeFromSqliteDb(): Promise<Omit<
       const edges: ReactFlowEdge[] = [];
       for (const table of names) {
         const fks = db
-          .prepare(`PRAGMA foreign_key_list(${JSON.stringify(table)})`)
+          .prepare(`PRAGMA foreign_key_list(${quoteSqlString(table)})`)
           .all() as Array<{ table: string; from: string; to: string }>;
 
         for (const fk of fks) {
@@ -188,7 +194,11 @@ async function visualizeFromSqliteDb(): Promise<Omit<
     } finally {
       db.close();
     }
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("visualizeFromSqliteDb failed", err);
+    }
+
     return null;
   }
 }
@@ -204,7 +214,9 @@ function parseCreateTableStatements(sql: string): SetupScriptTable[] {
     /CREATE TABLE IF NOT EXISTS\s+([a-zA-Z0-9_]+)\s*\(([\s\S]*?)\);/g;
 
   const tables: SetupScriptTable[] = [];
+  let sawCreateTable = false;
   for (const match of sql.matchAll(createTableRegex)) {
+    sawCreateTable = true;
     const tableName = match[1];
     const rawBody = match[2] ?? "";
     const lines = rawBody
@@ -238,6 +250,39 @@ function parseCreateTableStatements(sql: string): SetupScriptTable[] {
     }
 
     tables.push({ name: tableName, columns, edges });
+  }
+
+  if (!sawCreateTable && process.env.NODE_ENV !== "production") {
+    console.warn(
+      "No CREATE TABLE statements were parsed from setup script SQL.",
+    );
+  }
+
+  const tablesByName = new Map(tables.map((t) => [t.name, t] as const));
+  for (const table of tables) {
+    table.edges = table.edges.filter((edge) => {
+      const targetTable = tablesByName.get(edge.target);
+
+      if (!targetTable) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(
+            `Invalid FK edge parsed from setup script: ${table.name}.${edge.fromColumn} -> ${edge.target}.${edge.targetColumn}`,
+          );
+        }
+
+        return false;
+      }
+
+      const isValid = targetTable.columns.includes(edge.targetColumn);
+
+      if (!isValid && process.env.NODE_ENV !== "production") {
+        console.warn(
+          `Invalid FK edge parsed from setup script: ${table.name}.${edge.fromColumn} -> ${edge.target}.${edge.targetColumn}`,
+        );
+      }
+
+      return isValid;
+    });
   }
 
   return tables;
@@ -289,7 +334,11 @@ async function visualizeFromSetupScript(): Promise<Omit<
     }
 
     return { nodes, edges: Array.from(edgesById.values()) };
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("visualizeFromSetupScript failed", err);
+    }
+
     return null;
   }
 }
