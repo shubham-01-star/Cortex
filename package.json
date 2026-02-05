@@ -1,7 +1,7 @@
 {
   "name": "cortex-visual-commander",
   "version": "0.1.0",
-  "private": true,
+  "private": true, 
   "scripts": {
     "dev": "dotenv -e .env.local -- next dev --port 3099",
     "build": "next build",
