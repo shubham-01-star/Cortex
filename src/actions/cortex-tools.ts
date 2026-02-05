@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { headers } from "next/headers";
+import { z } from "zod";
 
 type ReactFlowPosition = {
   x: number;
@@ -492,5 +493,27 @@ export async function getStats(): Promise<GetStatsResult> {
     status: "ok",
     totalRevenue: orderAgg._sum.amount ?? 0,
     totalCustomers,
+  };
+}
+
+export type InviteMemberResult = {
+  success: true;
+  inviteLink: string;
+};
+
+export async function inviteMember(
+  email: string,
+  role: "ADMIN" | "VIEWER",
+): Promise<InviteMemberResult> {
+  z.string().email().parse(email);
+  z.enum(["ADMIN", "VIEWER"]).parse(role);
+
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, 1000);
+  });
+
+  return {
+    success: true,
+    inviteLink: `https://cortex.dev/join/${crypto.randomUUID()}`,
   };
 }
