@@ -23,6 +23,7 @@ pnpm-debug.log*
 
 # Misc
 .DS_Store
+*.tsbuildinfo
 coverage/
 dist/
 .cache/
