@@ -27,5 +27,6 @@ model Order {
 
   @@index([amount])
   @@index([createdAt])
+  @@index([customerId])
   @@map("orders")
 }
