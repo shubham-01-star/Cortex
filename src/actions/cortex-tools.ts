@@ -298,7 +298,9 @@ async function visualizeFromSetupScript(): Promise<Omit<
   }
 }
 
-export async function visualizeSchema(): Promise<VisualizeSchemaResult> {
+export async function visualizeSchema(
+  _params?: { focusTables?: string[] }
+): Promise<VisualizeSchemaResult> {
   try {
     const prisma = await visualizeFromPrismaDmmf();
     if (prisma) return { ...prisma, source: "prisma-dmmf" };
@@ -427,7 +429,7 @@ export async function fetchBusinessData(
     return {
       status: "ok",
       entity: "orders",
-      data: orders.map((o) => ({
+      data: orders.map((o: any) => ({
         id: o.id,
         amount: o.amount,
         createdAt: o.createdAt.toISOString(),
@@ -453,7 +455,7 @@ export async function fetchBusinessData(
     return {
       status: "ok",
       entity: "customers",
-      data: customers.map((c) => ({
+      data: customers.map((c: any) => ({
         id: c.id,
         name: c.name,
         email: c.email,
@@ -520,5 +522,129 @@ export async function inviteMember(
   return {
     success: true,
     inviteLink: `https://cortex.dev/join/${crypto.randomUUID()}`,
+  };
+}
+
+// Helper
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+export type VisualizeAnalyticsResult =
+  | DeniedResult
+  | {
+      status: "ok";
+      title: string;
+      type: "bar" | "line";
+      data: Array<{ name: string; value: number }>;
+      xAxisKey: "name";
+      dataKey: "value";
+      description?: string;
+    }
+  | {
+      status: "error";
+      message: string;
+    };
+
+export async function visualizeAnalytics(
+  metric: "revenue" | "customers",
+  period: "daily" | "weekly" | "monthly" = "daily"
+): Promise<VisualizeAnalyticsResult> {
+  const denied = await denyUnlessAdmin();
+  if (denied) return denied;
+
+  // Mock data generation (since we don't have real time-series data in this simple schema)
+  // In a real app, we would use prisma.groupBy() or raw query.
+  
+  if (metric === "revenue") {
+    // Generate last 7 days of "revenue"
+    const data = Array.from({ length: 7 }).map((_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - i));
+      return {
+        name: date.toLocaleDateString("en-US", { weekday: "short" }),
+        value: Math.floor(Math.random() * 5000) + 1000,
+      };
+    });
+
+    return {
+      status: "ok",
+      title: "Revenue Trends",
+      type: "line",
+      description: "Daily revenue for the past week",
+      data,
+      xAxisKey: "name",
+      dataKey: "value",
+    };
+  }
+
+  if (metric === "customers") {
+    // Generate distinct customer counts (mock)
+    const data = [
+      { name: "Mon", value: 12 },
+      { name: "Tue", value: 19 },
+      { name: "Wed", value: 15 },
+      { name: "Thu", value: 25 },
+      { name: "Fri", value: 32 },
+      { name: "Sat", value: 20 },
+      { name: "Sun", value: 10 },
+    ];
+
+    return {
+      status: "ok",
+      title: "New Customers",
+      type: "bar",
+      description: "New signups by day",
+      data,
+      xAxisKey: "name",
+      dataKey: "value",
+    };
+  }
+
+  return {
+    status: "error",
+    message: `Unknown metric: ${metric}`,
+  };
+}
+
+export type ModifySchemaResult =
+  | DeniedResult
+  | {
+      status: "pending_confirmation";
+      tableName: string;
+      columns: Array<{ name: string; type: string }>;
+      suggestedAction: "create" | "alter";
+    }
+  | {
+      status: "applied"; // In a real app, this would be a success result
+      message: string;
+    };
+
+export async function modifySchema(
+  tableName: string,
+  columns: Array<{ name: string; type: string }>,
+  action: "create" | "alter"
+): Promise<ModifySchemaResult> {
+  const denied = await denyUnlessAdmin();
+  if (denied) return denied;
+
+  // In a real application, this would:
+  // 1. Generate a Prisma migration file
+  // 2. Run 'prisma migrate deploy'
+  // 3. Update the in-memory DMMF
+  
+  // For this demo (SQL-less interface concept), we return the "pending" state 
+  // which tells the UI to render the <MigrationForm />.
+  // The actual "Apply" button in the form would ideally call a 'confirmSchemaChange' action.
+  
+  // But wait, the PRD says "On submit -> schema change".
+  // So the AI calls this tool to STARTS the process (Elicitation).
+  // The tool returns data that triggers the UI.
+  
+  return {
+    status: "pending_confirmation",
+    tableName,
+    columns,
+    suggestedAction: action
   };
 }
