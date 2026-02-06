@@ -32,3 +32,6 @@ dist/
 # Local package node_modules
 packages/*/node_modules
 doc/
+
+# Local databases
+*.db
