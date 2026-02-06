@@ -17,15 +17,26 @@ interface SchemaCanvasProps {
   edges: Edge[];
 }
 
+interface Field {
+  name: string;
+  type: string;
+  isId: boolean;
+}
+
+interface TableNodeData {
+  label: string;
+  fields: Field[];
+}
+
 // Custom Node for Tables (could be refined later)
-const TableNode = ({ data }: { data: any }) => {
+const TableNode = ({ data }: { data: TableNodeData }) => {
   return (
     <div className="rounded-md border bg-card text-card-foreground shadow-sm min-w-[200px]">
       <div className="border-b p-2 font-semibold bg-muted/50 text-sm">
         {data.label}
       </div>
       <div className="p-2 space-y-1">
-        {data.fields.map((f: any) => (
+        {data.fields.map((f) => (
           <div key={f.name} className="flex justify-between text-xs">
             <span className={f.isId ? "font-bold text-primary" : ""}>{f.name}</span>
             <span className="text-muted-foreground">{f.type}</span>
@@ -41,8 +52,8 @@ const nodeTypes = {
 };
 
 export function SchemaCanvas({ nodes: initialNodes, edges: initialEdges }: SchemaCanvasProps) {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, , onNodesChange] = useNodesState(initialNodes);
+  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
   return (
     <div className="h-[500px] w-full border rounded-lg overflow-hidden bg-background">

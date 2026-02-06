@@ -12,7 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 interface SmartTableProps {
   title?: string;
-  data: any[];
+  data: Record<string, unknown>[];
 }
 
 export function SmartTable({ title, data }: SmartTableProps) {
