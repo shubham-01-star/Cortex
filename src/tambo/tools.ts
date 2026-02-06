@@ -5,10 +5,10 @@ import { AdminStats } from "@/components/tambo/AdminStats";
 import { z } from "zod";
 
 // Cortex Server Actions
-import { 
-  visualizeSchema, 
-  fetchBusinessData, 
-  visualizeAnalytics, 
+import {
+  visualizeSchema,
+  fetchBusinessData,
+  visualizeAnalytics,
   modifySchema, // Imported
 } from "@/actions/cortex-tools";
 
@@ -58,14 +58,151 @@ const manageDataInput = z.object({
  */
 export function createTools(role: "admin" | "user") {
   return [
+    // --- ONBOARDING TOOLS ---
+    defineTool({
+      name: "login",
+      description: "Presents the login form. The result is a UI component. Do NOT repeat the JSON result. Use this when the user chooses to identify with email.",
+      inputSchema: z.object({
+        email: z.string().optional(),
+        password: z.string().optional()
+      }),
+      outputSchema: z.any(),
+      tool: async (params) => {
+        if (params.email && params.password) {
+          return { success: true, message: "Access granted. Opening Cortex...", action: "AUTH_PROCESS" };
+        }
+        return {
+          message: "Identify yourself to access the mainframe.",
+          requestedSchema: {
+            type: "object",
+            properties: {
+              email: { type: "string", description: "Email Address", format: "email" },
+              password: { type: "string", description: "Password", format: "password" }
+            },
+            required: ["email", "password"]
+          }
+        };
+      }
+    }),
+
+    defineTool({
+      name: "signup",
+      description: "Presents the registration form. The result is a UI component. Do NOT repeat the JSON result. Use this for new recruits.",
+      inputSchema: z.object({
+        name: z.string().optional(),
+        email: z.string().optional(),
+        password: z.string().optional()
+      }),
+      outputSchema: z.any(),
+      tool: async (params) => {
+        if (params.name && params.email && params.password) {
+          return { success: true, message: "Protocol initialized. Access granted. Opening Cortex...", action: "AUTH_PROCESS" };
+        }
+        return {
+          message: "Register your identity to join the fleet.",
+          requestedSchema: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Full Name" },
+              email: { type: "string", description: "Email Address", format: "email" },
+              password: { type: "string", description: "Password", format: "password" }
+            },
+            required: ["name", "email", "password"]
+          }
+        };
+      }
+    }),
+
+    defineTool({
+      name: "authenticate",
+      description: "Presents the high-level identity protocol menu (Google, GitHub, Email options). The result is a UI component. Do NOT repeat the JSON result.",
+      inputSchema: z.object({}),
+      outputSchema: z.object({ message: z.string(), action: z.string() }),
+      tool: async () => {
+        return {
+          message: "Welcome Commander. Identify yourself to access the mainframe.",
+          action: "CHOOSE_AUTH"
+        };
+      }
+    }),
+
+    defineTool({
+      name: "help",
+      description: "Provides information about what Cortex can do.",
+      inputSchema: z.object({}),
+      outputSchema: z.any(),
+      tool: async () => {
+        return {
+          message: "What would you like to explore first?",
+          requestedSchema: {
+            type: "object",
+            properties: {
+              capability: {
+                type: "string",
+                description: "Select a capability to learn more",
+                enum: [
+                  "visualize_schema",
+                  "fetch_business_data",
+                  "visualize_analytics",
+                  "modify_schema",
+                  "manage_data"
+                ],
+                enumNames: [
+                  "Visual Schema Canvas (ReactFlow)",
+                  "Smart Data Tables (Orders/Customers)",
+                  "Pro-grade Analytics Charts",
+                  "AI-driven Schema Migrations",
+                  "Ghost Mode (Safe Data Actions)"
+                ]
+              }
+            },
+            required: ["capability"]
+          }
+        };
+      }
+    }),
+
     // --- GENESIS TOOL ---
     defineTool({
-      name: "connect_database",
-      description: "Triggers the database connection elicitation form. Use this when the system detects no database is configured.",
-      inputSchema: z.object({}),
-      outputSchema: z.object({ status: z.string() }),
-      tool: async () => {
-         return { status: "setup_required" };
+      name: "setup_database",
+      description: "Connects a new database. If credentials are not provided, it triggers the elicitation form.",
+      inputSchema: z.object({
+        provider: z.string().optional(),
+        host: z.string().optional(),
+        port: z.number().optional(),
+        user: z.string().optional(),
+        password: z.string().optional(),
+        database: z.string().optional(),
+      }),
+      outputSchema: z.any(),
+      tool: async (params) => {
+        // If we have the required fields, save it!
+        if (params.provider && params.database) {
+          const { saveConnection } = await import("@/actions/connection-tools");
+          return await saveConnection(params as any);
+        }
+
+        // Otherwise, elicit
+        return {
+          message: "Please provide database connection details",
+          requestedSchema: {
+            type: "object",
+            properties: {
+              provider: {
+                type: "string",
+                description: "Database Provider",
+                enum: ["postgresql", "mysql", "sqlite"],
+                enumNames: ["PostgreSQL", "MySQL", "SQLite (Local)"]
+              },
+              host: { type: "string", description: "Host (e.g. localhost)" },
+              port: { type: "integer", description: "Port (e.g. 5432)", minimum: 1, maximum: 65535 },
+              user: { type: "string", description: "Username" },
+              password: { type: "string", description: "Password" },
+              database: { type: "string", description: "Database Name" }
+            },
+            required: ["provider", "host", "database"]
+          }
+        };
       }
     }),
 
@@ -80,7 +217,7 @@ export function createTools(role: "admin" | "user") {
         return { status: "optimal", message: "System OK", data: { cpu: "12%" } };
       },
     }),
-    
+
     defineTool({
       name: "invite_user",
       description: "Invites a new member to the team. If details are missing, it triggers the Invite Form elicitation.",
@@ -92,9 +229,9 @@ export function createTools(role: "admin" | "user") {
       }),
       outputSchema: z.object({ status: z.string() }),
       tool: async (params) => {
-         // We simply return the params so they can be passed as props to the InviteForm
-         // The UI component will handle the actual submission via Server Action
-         return { ...params, status: "form_ready" };
+        // We simply return the params so they can be passed as props to the InviteForm
+        // The UI component will handle the actual submission via Server Action
+        return { ...params, status: "form_ready" };
       }
     }),
 
@@ -110,7 +247,7 @@ export function createTools(role: "admin" | "user") {
         // Call Server Action
         const result = await visualizeSchema(params); // Passed params
         if (result.error) {
-           throw new Error(result.error);
+          throw new Error(result.error);
         }
         return { nodes: result.nodes, edges: result.edges };
       },
@@ -125,16 +262,16 @@ export function createTools(role: "admin" | "user") {
       tool: async (params) => {
         // Call Server Action
         const result = await fetchBusinessData(params.entity, params.limit);
-        
+
         if (result.status === "denied") {
-             throw new Error(result.message);
-        }
-        
-        if (result.status === "error") {
-            throw new Error(result.message);
+          throw new Error(result.message);
         }
 
-        return { data: result.data }; 
+        if (result.status === "error") {
+          throw new Error(result.message);
+        }
+
+        return { data: result.data };
       },
     }),
 
@@ -143,7 +280,7 @@ export function createTools(role: "admin" | "user") {
       name: "visualize_analytics",
       description: "Generates visual charts for key business metrics.",
       inputSchema: visualizeAnalyticsInput,
-      outputSchema: z.object({ 
+      outputSchema: z.object({
         title: z.string(),
         data: z.array(z.any()),
         type: z.enum(["bar", "line"]).optional(),
@@ -153,12 +290,12 @@ export function createTools(role: "admin" | "user") {
       }),
       tool: async (params) => {
         const result = await visualizeAnalytics(params.metric, params.period);
-        
+
         if (result.status === "denied") throw new Error(result.message);
         if (result.status === "error") throw new Error(result.message);
 
         // Stripping 'status' from result to match outputSchema partiality or just passing through
-        const { status, ...rest } = result; 
+        const { status, ...rest } = result;
         return rest;
       },
     }),
@@ -177,12 +314,12 @@ export function createTools(role: "admin" | "user") {
       }),
       tool: async (params) => {
         if (role !== "admin") return { status: "denied", message: "Access Denied: Admin role required." };
-        
+
         const result = await modifySchema(params.tableName, params.columns, params.action);
-        
+
         if (result.status === "denied") throw new Error((result as any).message); // Type casting for convenience
-        
-        return result; 
+
+        return result;
       }
     }),
 
@@ -192,8 +329,8 @@ export function createTools(role: "admin" | "user") {
       description: "High-risk data management tool. Allows deleting or updating records. REQUIRES ADMIN ROLE.",
       inputSchema: manageDataInput,
       // Include message for denied state
-      outputSchema: z.object({ 
-        status: z.string(), 
+      outputSchema: z.object({
+        status: z.string(),
         actionSummary: z.string().optional(),
         isOpen: z.boolean().optional(),
         message: z.string().optional()
@@ -219,91 +356,4 @@ export function createTools(role: "admin" | "user") {
 // For backward compatibility
 export const allTools = createTools("admin");
 
-/**
- * GENERATIVE UI COMPONENT REGISTRY
- * Maps the Tool Name -> React Component
- */
-export const tamboComponents = [
-  // Genesis
-  {
-    name: "connect_database",
-    description: "Renders DB connection form",
-    component: DbConnectForm,
-    propsSchema: z.object({ status: z.string() }),
-  },
-  
-  {
-    name: "invite_user",
-    description: "Renders Invite Team form",
-    component: InviteForm,
-    propsSchema: z.object({
-      name: z.string().optional(),
-      email: z.string().optional(),
-      role: z.string().optional(),
-      position: z.string().optional(),
-      status: z.string().optional(),
-    }),
-  },
-
-  // Legacy
-  {
-    name: "getSystemHealth",
-    description: "System stats",
-    component: AdminStats,
-    propsSchema: z.object({ status: z.string(), message: z.string(), data: z.any().optional() }),
-  },
-  
-  // Cortex
-  {
-    name: "visualize_schema",
-    description: "Renders database schema graph",
-    component: SchemaCanvas,
-    propsSchema: z.object({ 
-      nodes: z.array(z.any()), 
-      edges: z.array(z.any()) 
-    }),
-  },
-  {
-    name: "fetch_business_data",
-    description: "Renders data table",
-    component: SmartTable, 
-    propsSchema: z.object({ 
-      data: z.array(z.any()) 
-    }),
-  },
-  {
-    name: "visualize_analytics",
-    description: "Renders chart visualization",
-    component: SmartChart,
-    propsSchema: z.object({
-      title: z.string(),
-      data: z.array(z.any()),
-      type: z.enum(["bar", "line"]).optional(),
-      xAxisKey: z.string(),
-      dataKey: z.string(),
-      description: z.string().optional()
-    }),
-  },
-  {
-    name: "modify_schema",
-    description: "Renders migration elicitation form",
-    component: MigrationForm,
-    propsSchema: z.object({
-      tableName: z.string().optional(),
-      columns: z.array(z.any()).optional(),
-      suggestedAction: z.enum(["create", "alter"]).optional()
-    })
-  },
-  {
-    name: "manage_data",
-    description: "Renders Ghost Mode confirmation",
-    component: GhostModeModal,
-    // Add message to props schema to handle denied state gracefully if component uses it
-    propsSchema: z.object({ 
-      status: z.string(), // Not used by component but part of payload
-      actionSummary: z.string().optional(),
-      isOpen: z.boolean().optional(),
-      message: z.string().optional()
-    }),
-  },
-];
+export { tamboComponents } from "./config";

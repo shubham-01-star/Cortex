@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Navbar } from "@/components/tambo/Navbar";
 import { TamboClientWrapper } from "@/components/tambo/TamboClientWrapper";
+import { CortexChat } from "@/components/chat/CortexChat";
 import { SuggestionsPanel } from "@/components/tambo/SuggestionsPanel";
 
 export default async function DashboardLayout({
@@ -30,10 +31,18 @@ export default async function DashboardLayout({
           userName={session.user.name || "User"}
         />
         <div className="flex-1 flex overflow-hidden">
-          <main className="flex-1 overflow-hidden relative">{children}</main>
-          <SuggestionsPanel
-            role={(session.user.role as "admin" | "user") || "user"}
-          />
+          {/* Left Panel: Chat (35%) */}
+          <aside className="w-[35%] min-w-[320px] max-w-[450px] border-r border-white/10 flex flex-col relative z-20">
+            <CortexChat />
+          </aside>
+
+          {/* Right Panel: Canvas/Children (65%) */}
+          <main className="flex-1 overflow-hidden relative z-10 bg-zinc-950 flex">
+            <div className="flex-1 h-full overflow-hidden">
+              {children}
+            </div>
+            <SuggestionsPanel role={(session.user.role as "admin" | "user") || "user"} />
+          </main>
         </div>
       </div>
     </TamboClientWrapper>
