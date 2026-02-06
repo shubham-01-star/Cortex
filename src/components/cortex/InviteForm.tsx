@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createInvitation, type InviteUserInput } from "@/lib/actions/invite";
+import { createInvitation, type InviteUserInput } from "@/actions/invite";
 import { Loader2, UserPlus, Mail } from "lucide-react";
 
 export function InviteForm(props: Partial<InviteUserInput>) {
@@ -45,7 +45,7 @@ export function InviteForm(props: Partial<InviteUserInput>) {
     return (
       <div className="flex flex-col items-center justify-center p-8 bg-indigo-500/10 border border-indigo-500/20 rounded-xl animate-in fade-in zoom-in">
         <div className="w-12 h-12 bg-indigo-500 rounded-full flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/30">
-           <Mail className="text-white w-6 h-6" />
+          <Mail className="text-white w-6 h-6" />
         </div>
         <h3 className="text-xl font-bold text-white">Invitation Sent!</h3>
         <p className="text-zinc-400 text-sm mt-2 text-center">
@@ -61,7 +61,7 @@ export function InviteForm(props: Partial<InviteUserInput>) {
         <UserPlus className="text-indigo-400 w-5 h-5" />
         <h3 className="font-semibold text-white">Invite Team Member</h3>
       </div>
-      
+
       <form onSubmit={handleSubmit} className="p-6 space-y-4">
         {error && (
           <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-200">

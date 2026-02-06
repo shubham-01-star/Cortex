@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { connectDatabase, type DbSetupInput } from "@/lib/actions/setup";
+import { saveConnection, type ConnectionInput } from "@/actions/connection-tools";
 import { Loader2, Database, CheckCircle, AlertCircle } from "lucide-react";
 
 export function DbConnectForm() {
@@ -9,10 +9,10 @@ export function DbConnectForm() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState<DbSetupInput>({
+  const [formData, setFormData] = useState<ConnectionInput>({
     provider: "postgresql",
     host: "localhost",
-    port: "5432",
+    port: 5432,
     user: "postgres",
     password: "",
     database: "cortex_db",
@@ -24,11 +24,11 @@ export function DbConnectForm() {
     setError(null);
 
     try {
-      const result = await connectDatabase(formData);
+      const result = await saveConnection(formData);
       if (result.success) {
         setSuccess(true);
         // Optional: Trigger a refresh or notify parent
-        window.location.reload(); 
+        window.location.reload();
       } else {
         setError(result.message);
       }
@@ -40,9 +40,10 @@ export function DbConnectForm() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData((prev) => ({
+    const { name, value } = e.target;
+    setFormData((prev: ConnectionInput) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: name === "port" ? parseInt(value) || 0 : value,
     }));
   };
 
@@ -62,7 +63,7 @@ export function DbConnectForm() {
         <Database className="text-indigo-400 w-5 h-5" />
         <h3 className="font-semibold text-white">Connect Database</h3>
       </div>
-      
+
       <form onSubmit={handleSubmit} className="p-6 space-y-4">
         {error && (
           <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-sm text-red-200">
