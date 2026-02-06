@@ -75,7 +75,28 @@ export default function DashboardPage() {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   // Ref to track if the user *wants* to be listening, to survive closure staleness in onend
   const shouldBeListeningRef = useRef(false);
+  const shouldBeListeningRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hasCheckedGenesis = useRef(false);
+
+  // Genesis Flow Trigger
+  useEffect(() => {
+    if (hasCheckedGenesis.current) return;
+    hasCheckedGenesis.current = true;
+
+    const checkGenesis = async () => {
+      // Import dynamically to avoid top-level server action issues if any
+      const { checkDbConfig } = await import("@/lib/actions/setup");
+      const { isConfigured } = await checkDbConfig();
+      
+      if (!isConfigured && (!thread?.messages || thread.messages.length === 0)) {
+         // Trigger the assistant
+         await sendThreadMessage("The system detected no database connection. Please help me connect one.");
+      }
+    };
+    
+    checkGenesis();
+  }, [thread?.messages, sendThreadMessage]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -434,7 +455,7 @@ export default function DashboardPage() {
                           key={i}
                           className="mt-4 pt-4 border-t border-white/10 w-full flex justify-center"
                         >
-                          <Component {...result} />
+                          <Component {...(result as any)} /> {/* eslint-disable-line @typescript-eslint/no-explicit-any */}
                         </div>
                       );
                     }
@@ -464,7 +485,7 @@ export default function DashboardPage() {
                           key={i}
                           className="mt-4 pt-4 border-t border-white/10 w-full flex justify-center"
                         >
-                          <Component {...(part.props || {})} />
+                          <Component {...(part.props || {} as any)} /> {/* eslint-disable-line @typescript-eslint/no-explicit-any */}
                         </div>
                       );
                     }
