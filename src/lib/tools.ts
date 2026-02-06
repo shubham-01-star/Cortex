@@ -3,109 +3,135 @@ import { AdminStats } from "@/components/tambo/AdminStats";
 import { UserCard } from "@/components/tambo/UserCard";
 import { z } from "zod";
 
+// Cortex Imports
+import { visualizeSchemaTool } from "@/tools/schema-tools";
+import { fetchBusinessDataTool } from "@/tools/data-tools";
+import { manageDataTool } from "@/tools/admin-tools";
+
+import { SchemaCanvas } from "@/components/cortex/SchemaCanvas";
+import { SmartTable } from "@/components/cortex/SmartTable";
+import { GhostModeModal } from "@/components/cortex/GhostModeModal";
+
 /**
  * Creates the toolset for a specific user role.
  * This allows "baking in" security checks directly into the tool logic.
  */
 export function createTools(role: "admin" | "user") {
   return [
+    // --- LEGACY TOOLS (Keep for reference or remove if needed) ---
     defineTool({
       name: "getSystemHealth",
-      description:
-        "Retrieves analytics and health metrics for the system. Requires Admin privileges.",
-      inputSchema: z.object({
-        verbose: z
-          .boolean()
-          .optional()
-          .describe("If true, returns detailed sub-system breakdowns."),
-      }),
-      outputSchema: z.object({
-        status: z.string().optional(),
-        message: z.string().optional(),
-        data: z
-          .object({
-            cpu: z.string().optional(),
-            disk: z.string().optional(),
-            bandwidth: z.string().optional(),
-            uptime: z.string().optional(),
-          })
-          .optional(),
-      }),
+      description: "Retrieves analytics. Admin only.",
+      inputSchema: z.object({ verbose: z.boolean().optional() }),
+      outputSchema: z.object({ status: z.string(), message: z.string(), data: z.any() }),
       tool: async (params) => {
-        // 🔐 ROLE CHECK
-        if (role !== "admin") {
-          return {
-            status: "denied",
-            message:
-              "Access Denied. Your current security clearance level is 'User'. Administrative privileges are required to access System Health metrics and infrastructure diagnostics.",
-          };
-        }
-
-        // Simulated high-end diagnostics
-        return {
-          status: "optimal",
-          message:
-            "System scan complete. All core infrastructure components are operating within optimal parameters. No performance bottlenecks or security anomalies detected.",
-          data: {
-            cpu: params.verbose
-              ? "14.2% (Kernel: 2.1% | User: 12.1%)"
-              : "14.2%",
-            disk: "45.2 GB usage / 100 GB (SSD Optimized)",
-            bandwidth: "1.2 Gbps (Peak Throughput)",
-            uptime: "14d 2h 45m (Uptime stability: 99.99%)",
-          },
-        };
+        if (role !== "admin") return { status: "denied", message: "Access Denied." };
+        return { status: "optimal", message: "System OK", data: { cpu: "12%" } };
       },
     }),
+    
+    // --- CORTEX TOOLS ---
+
+    // 1. Visualize Schema
     defineTool({
-      name: "getUserProfile",
-      description: "Accesses the authenticated entity's primary profile data.",
-      inputSchema: z.object({}),
-      outputSchema: z.object({
-        status: z.string().optional(),
-        message: z.string().optional(),
+      name: "visualize_schema",
+      description: visualizeSchemaTool.description,
+      inputSchema: visualizeSchemaTool.inputSchema,
+      outputSchema: z.object({ nodes: z.array(z.any()), edges: z.array(z.any()) }),
+      tool: async (params) => {
+        // Safe for all users
+        return await visualizeSchemaTool.execute(params);
+      },
+    }),
+
+    // 2. Fetch Business Data
+    defineTool({
+      name: "fetch_business_data",
+      description: fetchBusinessDataTool.description,
+      inputSchema: fetchBusinessDataTool.inputSchema,
+      outputSchema: z.array(z.any()),
+      tool: async (params) => {
+        // Could add role-based row filtering here
+        const result = await fetchBusinessDataTool.execute(params);
+        return { data: result }; // formatted for SmartTable
+      },
+    }),
+
+    // 3. Manage Data (Ghost Mode)
+    defineTool({
+      name: "manage_data",
+      description: manageDataTool.description,
+      inputSchema: manageDataTool.inputSchema,
+      outputSchema: z.object({ 
+        status: z.string(), 
+        actionSummary: z.string().optional(),
+        requiresConfirmation: z.boolean().optional() 
       }),
-      tool: async () => ({
-        status: "active",
-        message:
-          "Identity verified. Displaying current user profile and session data retrieved from the BetterAuth security layer.",
-      }),
+      tool: async (params) => {
+        // 🔐 RBAC CHECK
+        if (role !== "admin") {
+          return { status: "denied", message: "Access Denied: Admin role required." };
+        }
+
+        // Return "Confirmation Needed" state to trigger Ghost Mode Modal
+        return {
+          status: "pending_confirmation",
+          requiresConfirmation: true,
+          actionSummary: `${params.action.toUpperCase()} operation on ${params.model} (ID: ${params.id})`,
+        };
+      },
     }),
   ];
 }
 
-// For backward compatibility (defaulting to admin view if imported directly)
+// For backward compatibility
 export const allTools = createTools("admin");
-export const userTools = createTools("user");
 
 /**
  * GENERATIVE UI COMPONENT REGISTRY
+ * Maps the Tool Name -> React Component
  */
 export const tamboComponents = [
+  // Legacy
   {
     name: "getSystemHealth",
-    description: "Displays system health or access denied card.",
+    description: "System stats",
     component: AdminStats,
-    propsSchema: z.object({
-      status: z.string().optional(),
-      message: z.string().optional(),
-      data: z
-        .object({
-          cpu: z.string().optional(),
-          disk: z.string().optional(),
-          bandwidth: z.string().optional(),
-          uptime: z.string().optional(),
-        })
-        .optional(),
+    propsSchema: z.object({ status: z.string(), message: z.string(), data: z.any() }),
+  },
+  
+  // Cortex
+  {
+    name: "visualize_schema",
+    description: "Renders database schema graph",
+    component: SchemaCanvas,
+    propsSchema: z.object({ 
+      nodes: z.array(z.any()), 
+      edges: z.array(z.any()) 
     }),
   },
   {
-    name: "getUserProfile",
-    description: "Displays user profile card.",
-    component: UserCard,
-    propsSchema: z.object({
-      status: z.string().optional(),
-      message: z.string().optional(),
+    name: "fetch_business_data",
+    description: "Renders data table",
+    // SmartTable expects "data" prop. Use 'transform' or ensure tool returns object with data key? 
+    // Wait, SmartTable props are { title, data }. Tool returns array. 
+    // The component wrapper will need to handle this or we adjust tool output.
+    // Simplified: Tool returns array. Tambo passes that as props?
+    // Actually Tambo passes tool result directly as props.
+    // So fetch_business_data tool should return { data: [...] }.
+    component: SmartTable, 
+    propsSchema: z.object({ 
+      data: z.array(z.any()) 
+    }),
+  },
+  {
+    name: "manage_data",
+    description: "Renders Ghost Mode confirmation",
+    component: GhostModeModal,
+    propsSchema: z.object({ 
+      status: z.string(),
+      actionSummary: z.string().optional(),
+      requiresConfirmation: z.boolean().optional()
     }),
   },
 ];
