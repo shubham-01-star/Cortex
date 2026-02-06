@@ -115,7 +115,7 @@ async function visualizeFromPrismaDmmf(): Promise<Omit<
 
         const relationName =
           typeof field.relationName === "string" &&
-          field.relationName.length > 0
+            field.relationName.length > 0
             ? field.relationName
             : field.name;
 
@@ -383,19 +383,19 @@ export type BusinessCustomer = {
 export type FetchBusinessDataResult =
   | DeniedResult
   | {
-      status: "ok";
-      entity: "orders";
-      data: BusinessOrder[];
-    }
+    status: "ok";
+    entity: "orders";
+    data: BusinessOrder[];
+  }
   | {
-      status: "ok";
-      entity: "customers";
-      data: BusinessCustomer[];
-    }
+    status: "ok";
+    entity: "customers";
+    data: BusinessCustomer[];
+  }
   | {
-      status: "error";
-      message: string;
-    };
+    status: "error";
+    message: string;
+  };
 
 export async function fetchBusinessData(
   entity: string,
@@ -416,7 +416,7 @@ export async function fetchBusinessData(
         id: true,
         amount: true,
         createdAt: true,
-        customer: {
+        Customer: {
           select: {
             id: true,
             name: true,
@@ -473,10 +473,10 @@ export async function fetchBusinessData(
 export type GetStatsResult =
   | DeniedResult
   | {
-      status: "ok";
-      totalRevenue: number;
-      totalCustomers: number;
-    };
+    status: "ok";
+    totalRevenue: number;
+    totalCustomers: number;
+  };
 
 export async function getStats(): Promise<GetStatsResult> {
   const denied = await denyUnlessAdmin();
@@ -501,9 +501,9 @@ export async function getStats(): Promise<GetStatsResult> {
 export type InviteMemberResult =
   | DeniedResult
   | {
-      success: true;
-      inviteLink: string;
-    };
+    success: true;
+    inviteLink: string;
+  };
 
 export async function inviteMember(
   email: string,
@@ -533,18 +533,18 @@ function capitalize(s: string) {
 export type VisualizeAnalyticsResult =
   | DeniedResult
   | {
-      status: "ok";
-      title: string;
-      type: "bar" | "line";
-      data: Array<{ name: string; value: number }>;
-      xAxisKey: "name";
-      dataKey: "value";
-      description?: string;
-    }
+    status: "ok";
+    title: string;
+    type: "bar" | "line";
+    data: Array<{ name: string; value: number }>;
+    xAxisKey: "name";
+    dataKey: "value";
+    description?: string;
+  }
   | {
-      status: "error";
-      message: string;
-    };
+    status: "error";
+    message: string;
+  };
 
 export async function visualizeAnalytics(
   metric: "revenue" | "customers",
@@ -555,7 +555,7 @@ export async function visualizeAnalytics(
 
   // Mock data generation (since we don't have real time-series data in this simple schema)
   // In a real app, we would use prisma.groupBy() or raw query.
-  
+
   if (metric === "revenue") {
     // Generate last 7 days of "revenue"
     const data = Array.from({ length: 7 }).map((_, i) => {
@@ -610,15 +610,15 @@ export async function visualizeAnalytics(
 export type ModifySchemaResult =
   | DeniedResult
   | {
-      status: "pending_confirmation";
-      tableName: string;
-      columns: Array<{ name: string; type: string }>;
-      suggestedAction: "create" | "alter";
-    }
+    status: "pending_confirmation";
+    tableName: string;
+    columns: Array<{ name: string; type: string }>;
+    suggestedAction: "create" | "alter";
+  }
   | {
-      status: "applied"; // In a real app, this would be a success result
-      message: string;
-    };
+    status: "applied"; // In a real app, this would be a success result
+    message: string;
+  };
 
 export async function modifySchema(
   tableName: string,
@@ -632,15 +632,15 @@ export async function modifySchema(
   // 1. Generate a Prisma migration file
   // 2. Run 'prisma migrate deploy'
   // 3. Update the in-memory DMMF
-  
+
   // For this demo (SQL-less interface concept), we return the "pending" state 
   // which tells the UI to render the <MigrationForm />.
   // The actual "Apply" button in the form would ideally call a 'confirmSchemaChange' action.
-  
+
   // But wait, the PRD says "On submit -> schema change".
   // So the AI calls this tool to STARTS the process (Elicitation).
   // The tool returns data that triggers the UI.
-  
+
   return {
     status: "pending_confirmation",
     tableName,
