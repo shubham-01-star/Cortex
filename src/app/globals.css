@@ -186,4 +186,33 @@ body {
   .animate-shake {
     animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
   }
+
+  /* Galactic Starfield */
+  @keyframes space-drift {
+    from { background-position: 0 0; }
+    to { background-position: -500px 1000px; }
+  }
+
+  .bg-starfield {
+    background-image: 
+      radial-gradient(1px 1px at 20px 30px, #fff, rgba(0,0,0,0)),
+      radial-gradient(1px 1px at 40px 70px, #fff, rgba(0,0,0,0)),
+      radial-gradient(2px 2px at 50px 160px, #ddd, rgba(0,0,0,0)),
+      radial-gradient(2px 2px at 90px 40px, #fff, rgba(0,0,0,0)),
+      radial-gradient(1px 1px at 130px 80px, #fff, rgba(0,0,0,0)),
+      radial-gradient(2px 2px at 160px 120px, #ddd, rgba(0,0,0,0));
+    background-repeat: repeat;
+    background-size: 200px 200px;
+    animation: space-drift 120s linear infinite;
+    opacity: 0.15;
+  }
+
+  /* Glassmorphism */
+  .glass-panel {
+    @apply bg-zinc-950/40 backdrop-blur-md border border-white/10 shadow-2xl;
+  }
+
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-sm border border-white/10 hover:border-white/20 transition-all duration-300;
+  }
 }

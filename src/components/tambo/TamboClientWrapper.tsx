@@ -1,6 +1,6 @@
 "use client";
 
-import { TamboProvider, type TamboComponent } from "@tambo-ai/react";
+import { TamboProvider, type TamboComponent, MCPTransport } from "@tambo-ai/react";
 import { createTools, tamboComponents } from "@/tambo/tools";
 
 import { useMemo } from "react";
@@ -46,11 +46,25 @@ export function TamboClientWrapper({
 
   console.log("🚀 [TamboClientWrapper] Rendering Real TamboProvider...");
 
+  const mcpServers = useMemo(() => {
+    const url = process.env.NEXT_PUBLIC_MCP_SERVER_URL;
+    if (!url) return [];
+
+    return [
+      {
+        url,
+        serverKey: "cortex-mcp",
+        transport: MCPTransport.HTTP,
+      }
+    ];
+  }, []);
+
   return (
     <TamboProvider
       apiKey={apiKey}
       tools={activeTools}
       components={tamboComponents as TamboComponent[]}
+      mcpServers={mcpServers}
     >
       {children}
     </TamboProvider>

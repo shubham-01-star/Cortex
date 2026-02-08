@@ -13,9 +13,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+
 export const metadata: Metadata = {
-  title: "BetterAuth x Tambo V3",
-  description: "The cutting-edge Agent template for Jan 2026",
+  title: "Cortex • The Visual Data Commander",
+  description: "Stop writing SQL. Cortex is an identity-aware, generative UI database interface that turns natural language into interactive canvases. Powered by Tambo SDK.",
+  keywords: ["Generative UI", "Database", "Tambo AI", "Hackathon", "Visual Interface", "DevTools"],
+  openGraph: {
+    title: "Cortex • The Visual Data Commander",
+    description: "Experience the future of database management. No SQL. Just Command.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -26,9 +33,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black relative`}
         suppressHydrationWarning
       >
+        <div className="fixed inset-0 bg-starfield pointer-events-none" />
         {children}
       </body>
     </html>

@@ -275,7 +275,7 @@ export function CortexChat() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-zinc-950/50 relative overflow-hidden">
+        <div className="flex flex-col h-full bg-zinc-950/40 glass-panel relative overflow-hidden m-2 rounded-2xl border border-white/5">
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 space-y-6 scroll-smooth">
                 {messages.length === 0 && !streaming && (
                     <div className="flex flex-col items-center justify-center min-h-[300px] text-center space-y-4 animate-in fade-in zoom-in duration-700">
@@ -412,8 +412,18 @@ export function CortexChat() {
 
                 <div className="flex gap-2 items-center bg-white/5 border border-white/10 p-1.5 rounded-full focus-within:border-indigo-500/50 transition-all">
                     <button onClick={toggleVoice} disabled={!isSupported} className={`p-2 rounded-full transition-all ${isSupported ? (isListening ? "bg-red-500/20 text-red-500 animate-pulse" : "text-zinc-500 hover:text-white") : "opacity-20 cursor-not-allowed"}`}>{isListening ? <MicOff size={16} /> : <Mic size={16} />}</button>
-                    <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void handleSend()} placeholder={isListening ? "Listening..." : "Command cortex..."} className="flex-1 bg-transparent text-white px-2 py-1 focus:outline-none placeholder:text-zinc-600 text-xs" />
-                    <button onClick={() => void handleSend()} disabled={!input.trim() || streaming} className="bg-white text-black p-2 rounded-full hover:opacity-90 active:scale-95 disabled:opacity-20 transition-all"><Send size={14} /></button>
+                    <input
+                        type="text"
+                        value={input}
+                        onChange={(e) => {
+                            setInput(e.target.value);
+                            if (globalError) setGlobalError(null);
+                        }}
+                        onKeyDown={(e) => e.key === "Enter" && void handleSend()}
+                        placeholder={isListening ? "Listening..." : "Command cortex..."}
+                        className="flex-1 bg-transparent text-white px-2 py-1 focus:outline-none placeholder:text-zinc-600 text-xs"
+                    />
+                    <button onClick={() => void handleSend()} disabled={!input.trim()} className="bg-white text-black p-2 rounded-full hover:opacity-90 active:scale-95 disabled:opacity-40 transition-all"><Send size={14} /></button>
                 </div>
             </div>
         </div>
