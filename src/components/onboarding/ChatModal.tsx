@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useTambo } from "@tambo-ai/react";
+import { useTambo } from "@/hooks/use-tambo";
 import {
     X,
     Sparkles,
@@ -107,11 +107,18 @@ export function OnboardingModal({ isOpen, onClose }: { isOpen: boolean; onClose:
         }
     }, [messages, streaming]);
 
-    const handleSend = async () => {
-        const msg = input.trim();
+    const handleSend = async (text?: string) => {
+        const msg = (text || input).trim();
         if (!msg) return;
-        setInput("");
-        await sendThreadMessage(msg);
+
+        try {
+            if (!text) setInput("");
+            await sendThreadMessage(msg);
+        } catch (error) {
+            console.error("❌ [ChatModal] Failed to send message:", error);
+            // Restore input if it failed and was manual
+            if (!text) setInput(msg);
+        }
     };
 
     if (!isOpen) return null;
@@ -317,8 +324,7 @@ export function OnboardingModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                                 <button
                                     key={action.label}
                                     onClick={() => {
-                                        setInput(action.text);
-                                        handleSend();
+                                        handleSend(action.text);
                                     }}
                                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-[10px] font-bold text-zinc-400 hover:text-white transition-all whitespace-nowrap"
                                 >
@@ -337,16 +343,16 @@ export function OnboardingModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                            onKeyDown={(e) => e.key === 'Enter' && void handleSend()}
                             placeholder="Type your response..."
                             className="flex-1 bg-transparent text-white px-3 py-2 focus:outline-none placeholder:text-zinc-600 text-sm"
                         />
                         <button
-                            onClick={handleSend}
-                            disabled={!input.trim() || streaming}
-                            className="bg-white text-black p-2 rounded-xl hover:opacity-90 active:scale-95 disabled:opacity-20 transition-all"
+                            onClick={() => void handleSend()}
+                            disabled={!input.trim()}
+                            className="bg-white text-black p-2 rounded-full hover:opacity-90 active:scale-95 disabled:opacity-40 transition-all"
                         >
-                            <Send size={18} />
+                            <Send size={16} />
                         </button>
                     </div>
                 </div>

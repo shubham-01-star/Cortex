@@ -1,12 +1,13 @@
 services:
   cortex:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
       args:
         - DATABASE_URL=${DATABASE_URL}
         - BETTER_AUTH_URL=${BETTER_AUTH_URL}
         - NEXT_PUBLIC_USE_MOCK=${NEXT_PUBLIC_USE_MOCK}
+        - NEXT_PUBLIC_TAMBO_API_KEY=${NEXT_PUBLIC_TAMBO_API_KEY}
     ports:
       - "3099:3099"
     env_file:
