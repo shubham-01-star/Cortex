@@ -71,6 +71,8 @@ graph TD
     style RSK fill:#ef4444,color:#fff
 ```
 
+<img width="3104" height="3562" alt="cortex-arch" src="https://github.com/user-attachments/assets/aca4a16b-909a-4134-906e-22612fa00f93" />
+
 ## 🛠️ Tech Stack
 
 - **Agent Framework**: [Tambo AI](https://tambo.co/) (Core Kernel & SDK)
@@ -127,4 +129,4 @@ Cortex implements a "Ghost Mode" for high-risk data operations. When a destructi
 
 ---
 
-Built for the **Generative UI Hackathon**. Powered by AI.
+Built for the **Generative UI Hackathon**. Powered by TAMBO AI.
