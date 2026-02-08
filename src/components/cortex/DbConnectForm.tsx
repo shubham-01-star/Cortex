@@ -1,21 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { saveConnection, type ConnectionInput } from "@/actions/connection-tools";
-import { Loader2, Database, CheckCircle, AlertCircle } from "lucide-react";
+import { saveConnection, type ConnectionInput } from "@/server/actions/connection-tools";
+import { Loader2, Database, CheckCircle, AlertCircle, Sparkles } from "lucide-react";
 
-export function DbConnectForm() {
+interface DbConnectFormProps {
+  success?: boolean;
+  message?: string;
+}
+
+export function DbConnectForm({ success: initialSuccess, message }: DbConnectFormProps) {
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState(initialSuccess || false);
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<ConnectionInput>({
     provider: "postgresql",
-    host: "localhost",
+    host: "",
     port: 5432,
-    user: "postgres",
+    user: "",
     password: "",
-    database: "cortex_db",
+    database: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,7 +33,8 @@ export function DbConnectForm() {
       if (result.success) {
         setSuccess(true);
         // Optional: Trigger a refresh or notify parent
-        window.location.reload();
+        // window.location.reload(); 
+        // No reload to keep chat context active as requested
       } else {
         setError(result.message);
       }
@@ -49,10 +55,14 @@ export function DbConnectForm() {
 
   if (success) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 bg-green-500/10 border border-green-500/20 rounded-xl animate-in fade-in zoom-in">
-        <CheckCircle className="text-green-400 w-12 h-12 mb-4" />
-        <h3 className="text-xl font-bold text-white">Database Connected</h3>
-        <p className="text-zinc-400 text-sm mt-2">Cortex is ready to visualize your schema.</p>
+      <div className="flex flex-col items-center justify-center p-8 bg-emerald-500/10 border border-emerald-500/20 rounded-xl animate-in fade-in zoom-in w-full">
+        <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 border border-emerald-500/20">
+          <CheckCircle className="w-8 h-8 text-emerald-500" />
+        </div>
+        <h3 className="text-xl font-bold text-white mb-2">System Online</h3>
+        <p className="text-zinc-400 text-sm text-center max-w-xs">
+          {message || "Database connection established successfully."}
+        </p>
       </div>
     );
   }
@@ -83,75 +93,90 @@ export function DbConnectForm() {
             <option value="postgresql">PostgreSQL</option>
             <option value="mysql">MySQL</option>
             <option value="sqlite">SQLite</option>
+            <option value="mock">Mock Database (Simulation)</option>
           </select>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 space-y-2">
-            <label className="text-xs font-medium text-zinc-400 uppercase">Host</label>
-            <input
-              type="text"
-              name="host"
-              value={formData.host}
-              onChange={handleChange}
-              className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
-              placeholder="localhost"
-            />
+        {formData.provider === "mock" ? (
+          <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-indigo-300 font-medium">
+              <Sparkles className="w-4 h-4" />
+              <span>Simulation Mode</span>
+            </div>
+            <p className="text-xs text-zinc-400">
+              Connects to a local simulated database environment. perfect for testing architecture and features proper end-to-end data flow without external dependencies.
+            </p>
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-zinc-400 uppercase">Port</label>
-            <input
-              type="text"
-              name="port"
-              value={formData.port}
-              onChange={handleChange}
-              className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
-            />
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-2 space-y-2">
+                <label className="text-xs font-medium text-zinc-400 uppercase">Host</label>
+                <input
+                  type="text"
+                  name="host"
+                  value={formData.host}
+                  onChange={handleChange}
+                  className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
+                  placeholder="localhost"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-zinc-400 uppercase">Port</label>
+                <input
+                  type="text"
+                  name="port"
+                  value={formData.port}
+                  onChange={handleChange}
+                  className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
+                />
+              </div>
+            </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-zinc-400 uppercase">User</label>
-            <input
-              type="text"
-              name="user"
-              value={formData.user}
-              onChange={handleChange}
-              className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
-              placeholder="postgres"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-zinc-400 uppercase">Password</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
-              placeholder="••••••"
-            />
-          </div>
-        </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-zinc-400 uppercase">User</label>
+                <input
+                  type="text"
+                  name="user"
+                  value={formData.user}
+                  onChange={handleChange}
+                  className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
+                  placeholder="postgres"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-zinc-400 uppercase">Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
+                  placeholder="••••••"
+                />
+              </div>
+            </div>
 
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-zinc-400 uppercase">Database Name</label>
-          <input
-            type="text"
-            name="database"
-            value={formData.database}
-            onChange={handleChange}
-            className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
-            placeholder="cortex_db"
-          />
-        </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-zinc-400 uppercase">Database Name</label>
+              <input
+                type="text"
+                name="database"
+                value={formData.database}
+                onChange={handleChange}
+                className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
+                placeholder="cortex_db"
+              />
+            </div>
+          </>
+        )}
 
         <div className="pt-2">
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
           >
             {loading ? (
               <>

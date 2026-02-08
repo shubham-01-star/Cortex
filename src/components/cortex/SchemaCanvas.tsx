@@ -1,16 +1,18 @@
 "use client";
 
-import React, { useCallback } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import ReactFlow, {
   Background,
   Controls,
   MiniMap,
   useNodesState,
   useEdgesState,
-  Node,
-  Edge,
+  Handle,
+  Position,
 } from 'reactflow';
+import type { Node, Edge } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { useCortexStore } from '@/lib/store';
 
 interface SchemaCanvasProps {
   nodes: Node[];
@@ -28,11 +30,24 @@ interface TableNodeData {
   fields: Field[];
 }
 
-// Custom Node for Tables (could be refined later)
+// Custom Node for Tables
 const TableNode = ({ data }: { data: TableNodeData }) => {
+  const ghostHighlight = useCortexStore((state) => state.ghostHighlight);
+  const isHighlighted = ghostHighlight === data.label;
+
   return (
-    <div className="rounded-md border bg-card text-card-foreground shadow-sm min-w-[200px] cursor-pointer hover:border-indigo-500/50 transition-colors group">
-      <div className="border-b p-2 font-semibold bg-muted/50 text-sm group-hover:bg-indigo-500/10 transition-colors">
+    <div className={`rounded-md border bg-card text-card-foreground shadow-sm min-w-[200px] cursor-pointer transition-all duration-500 group ${isHighlighted
+      ? "border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] scale-110 z-50 ring-2 ring-red-500 ring-offset-2 ring-offset-background"
+      : "hover:border-indigo-500/50"
+      } ${isHighlighted ? "animate-shake" : ""}`}>
+
+      {/* Handles for connecting edges */}
+      <Handle type="target" position={Position.Top} className="!bg-zinc-500 !w-2 !h-2" />
+
+      <div className={`border-b p-2 font-semibold text-sm transition-colors ${isHighlighted
+        ? "bg-red-500/20 text-red-500"
+        : "bg-muted/50 group-hover:bg-indigo-500/10"
+        }`}>
         {data.label}
       </div>
       <div className="p-2 space-y-1">
@@ -43,17 +58,42 @@ const TableNode = ({ data }: { data: TableNodeData }) => {
           </div>
         ))}
       </div>
+
+      <Handle type="source" position={Position.Bottom} className="!bg-zinc-500 !w-2 !h-2" />
     </div>
   );
 };
 
-const nodeTypes = {
-  tableNode: TableNode,
-};
-
 export function SchemaCanvas({ nodes: initialNodes, edges: initialEdges }: SchemaCanvasProps) {
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes ?? []);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges ?? []);
+
+  // Use useMemo for nodeTypes to silence "new object created" warning reliably
+  const nodeTypes = useMemo(() => ({
+    tableNode: TableNode,
+  }), []);
+
+  // Sync props to state with strict validation (Fix for "Crash on partial streaming")
+  useEffect(() => {
+    // Basic validation to prevent crashing ReactFlow if data is partial/malformed
+    const validNodes = (initialNodes || []).filter(n => n && n.id && n.position && n.data);
+    const validEdges = (initialEdges || []).filter(e => e && e.id && e.source && e.target);
+
+    // Only update if we have meaningful data changes
+    setNodes((currentNodes) => {
+      if (JSON.stringify(validNodes) !== JSON.stringify(currentNodes)) {
+        return validNodes;
+      }
+      return currentNodes;
+    });
+
+    setEdges((currentEdges) => {
+      if (JSON.stringify(validEdges) !== JSON.stringify(currentEdges)) {
+        return validEdges;
+      }
+      return currentEdges;
+    });
+  }, [initialNodes, initialEdges, setNodes, setEdges]);
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     const tableName = node.data.label;
@@ -65,7 +105,11 @@ export function SchemaCanvas({ nodes: initialNodes, edges: initialEdges }: Schem
   }, []);
 
   return (
-    <div className="h-[500px] w-full border rounded-lg overflow-hidden bg-background">
+    <div className="h-[500px] w-full border rounded-lg overflow-hidden bg-zinc-950 relative group">
+      <div className="absolute top-4 right-4 z-50 bg-black/50 backdrop-blur-md p-1 rounded-lg border border-white/10 hidden group-hover:block transition-all">
+        <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium px-2">Schema Canvas</span>
+      </div>
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -74,10 +118,15 @@ export function SchemaCanvas({ nodes: initialNodes, edges: initialEdges }: Schem
         onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
         fitView
+        className="bg-zinc-950 text-zinc-100"
       >
-        <Background />
-        <Controls />
-        <MiniMap />
+        <Background gap={16} size={1} color="#333" />
+        <Controls className="bg-zinc-900 border-white/10 fill-white text-white [&>button]:border-white/10 [&>button:hover]:bg-white/10" />
+        <MiniMap
+          className="bg-zinc-900 border-white/10"
+          nodeColor="#3f3f46"
+          maskColor="rgba(0,0,0,0.6)"
+        />
       </ReactFlow>
     </div>
   );

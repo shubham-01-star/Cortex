@@ -12,21 +12,39 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ShieldAlert } from "lucide-react";
 import { useState, useEffect } from "react";
+import { AccessDenied } from "./AccessDenied";
 
 interface GhostModeModalProps {
-  isOpen: boolean;
-  actionSummary: string;
-  onConfirm: () => void;
-  onCancel: () => void;
+  isOpen?: boolean;
+  status: string;
+  actionSummary?: string;
+  message?: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
 }
 
-export function GhostModeModal({ isOpen, actionSummary, onConfirm, onCancel }: GhostModeModalProps) {
+export function GhostModeModal({
+  isOpen,
+  status,
+  actionSummary,
+  message,
+  onConfirm = () => { },
+  onCancel = () => { }
+}: GhostModeModalProps) {
   // Prevent hydration mismatch
   const [mounted, setMounted] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
 
   if (!mounted) return null;
+
+  // Handle Access Denied State (Viewer attempted dangerous action)
+  if (status === "denied") {
+    return <AccessDenied reason={message} />;
+  }
+
+  // Handle Default/Closed State
+  if (!isOpen) return null;
 
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onCancel()}>
@@ -48,7 +66,7 @@ export function GhostModeModal({ isOpen, actionSummary, onConfirm, onCancel }: G
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onCancel}>Cancel</AlertDialogCancel>
-          <AlertDialogAction 
+          <AlertDialogAction
             onClick={onConfirm}
             className="bg-red-600 hover:bg-red-700 text-white"
           >
