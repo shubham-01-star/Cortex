@@ -1,11 +1,28 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/server/db/prisma';
+import { auth } from '@/server/auth/auth';
+import { headers } from 'next/headers';
 
 export async function GET() {
     try {
-        // Check if any active DB connection exists
+        const session = await auth.api.getSession({
+            headers: await headers()
+        });
+
+        if (!session?.user) {
+            return NextResponse.json({ hasConnection: false });
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: { invitedById: true }
+        });
+
+        const effectiveUserId = (user as any)?.invitedById || session.user.id;
+
+        // Check if any active DB connection exists for this user (or their inviter)
         const dbConfig = await prisma.dbConfig.findFirst({
-            where: { isActive: true },
+            where: { userId: effectiveUserId, isActive: true },
         });
 
         return NextResponse.json({ hasConnection: !!dbConfig });

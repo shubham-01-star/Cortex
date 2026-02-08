@@ -1,35 +1,41 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Database, MessageSquare, ShieldCheck, Sparkles, MoveRight } from "lucide-react";
 import { OnboardingModal } from "@/components/onboarding/ChatModal";
 import { TamboClientWrapper } from "@/components/tambo/TamboClientWrapper";
-import { useSession } from "@/lib/auth-client";
+import { useSession } from "@/server/auth/auth-client";
 
-export function LandingPageClient({ apiKey }: { apiKey: string }) {
+export function LandingPageClient({ apiKey = "", overlay }: { apiKey?: string; overlay?: React.ReactNode } = {}) {
     const { data: session } = useSession();
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const guestToken = useMemo(() => `guest-${Math.random().toString(36).substring(7)}`, []);
+    const [guestToken] = useState(() => `guest-${Math.random().toString(36).substring(7)}`);
 
     return (
         <TamboClientWrapper
             apiKey={apiKey}
-            userToken={session?.session?.id || guestToken}
-            role={(session?.user?.role as any) || "user"}
+            role={(session?.user?.role as "user" | "admin") || "user"}
         >
-            <div className="flex min-h-screen flex-col bg-zinc-950 text-foreground selection:bg-indigo-500/30">
+            <div className="flex min-h-screen flex-col bg-zinc-950 text-foreground selection:bg-indigo-500/30 relative">
                 {/* Background Gradients */}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,#4f46e520_0%,transparent_50%)]" />
                 <div className="absolute inset-0 bg-dot-pattern opacity-10 pointer-events-none" />
 
+                {/* Overlay Mode */}
+                {overlay && (
+                    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-500">
+                        {overlay}
+                    </div>
+                )}
+
                 {/* Hero Section */}
-                <section className="flex flex-1 flex-col items-center justify-center space-y-12 px-6 py-24 text-center relative z-10">
+                <section className={`flex flex-1 flex-col items-center justify-center space-y-12 px-6 py-24 text-center relative z-10 ${overlay ? 'blur-sm opacity-50 pointer-events-none' : ''}`}>
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-wider">
                             <Sparkles size={12} />
-                            The Visual Data Commander
+                            The Visual Data Assistant
                         </div>
                         <h1 className="text-7xl font-black tracking-tighter sm:text-8xl bg-gradient-to-b from-white to-zinc-500 bg-clip-text text-transparent">
                             CORTEX
@@ -55,7 +61,7 @@ export function LandingPageClient({ apiKey }: { apiKey: string }) {
                 </section>
 
                 {/* Feature Grid */}
-                <section className="container mx-auto grid max-w-5xl grid-cols-1 gap-6 px-6 pb-24 md:grid-cols-3 relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
+                <section className={`container mx-auto grid max-w-5xl grid-cols-1 gap-6 px-6 pb-24 md:grid-cols-3 relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500 ${overlay ? 'blur-sm opacity-50 pointer-events-none' : ''}`}>
                     <Card className="bg-white/5 border-white/10 shadow-2xl backdrop-blur-sm group hover:border-blue-500/50 transition-colors">
                         <CardHeader>
                             <Database className="h-10 w-10 text-blue-500 mb-2 group-hover:scale-110 transition-transform" />

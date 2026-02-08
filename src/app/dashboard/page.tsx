@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSession } from "@/lib/auth-client";
+import { useSession } from "@/server/auth/auth-client";
 import { useTambo } from "@tambo-ai/react";
 import { CanvasPanel } from "@/components/chat/CanvasPanel";
 import { Loader2 } from "lucide-react";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function DashboardPage() {
   const { data: session, isPending } = useSession();
@@ -21,18 +22,24 @@ export default function DashboardPage() {
         // Check if user has a DB connection configured
         const response = await fetch('/api/db/check-connection');
         const { hasConnection } = await response.json();
+        const role = (session?.user as { role?: string })?.role;
 
-        if (!hasConnection) {
-          // Trigger Genesis Flow
+        if (!hasConnection && role === "admin") {
+          // Trigger Genesis Flow for ADMINs only
+          // Trigger Genesis Flow for ADMINs only
           setTimeout(() => {
-            sendThreadMessage(
-              "No database detected. Let's connect one. HIDDEN_SYS_Execute setup_database tool to show connection form."
-            );
+            if (sendThreadMessage) {
+              sendThreadMessage(
+                "No database connection detected. We need to set up the database. Please help me connect using the setup_database tool."
+              );
+            }
           }, 500);
         } else {
           // DB already connected - show ready message
           setTimeout(() => {
-            sendThreadMessage("System ready. What would you like to explore?");
+            if (sendThreadMessage) {
+              sendThreadMessage("System ready. What would you like to explore?");
+            }
           }, 500);
         }
       } catch (error) {
@@ -69,5 +76,9 @@ export default function DashboardPage() {
   }
 
   // Layout already provides split-screen, just render canvas
-  return <CanvasPanel />;
+  return (
+    <ErrorBoundary name="Canvas">
+      <CanvasPanel />
+    </ErrorBoundary>
+  );
 }

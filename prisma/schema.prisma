@@ -3,59 +3,54 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
-}
-
-model Customer {
-  id        String   @id
-  name      String
-  email     String
-  createdAt DateTime @default(now())
-  Order     Order[]
-}
-
-model DbConfig {
-  id               String  @id
-  connectionString String
-  provider         String
-  isActive         Boolean @default(true)
-}
-
-model Invitation {
-  id        String   @id
-  email     String
-  role      Role
-  token     String   @unique
-  status    String
-  createdAt DateTime @default(now())
-}
-
-model Order {
-  id         String   @id
-  amount     Float
-  status     String
-  customerId String
-  createdAt  DateTime @default(now())
-  Customer   Customer @relation(fields: [customerId], references: [id])
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String    @id
-  email     String    @unique
-  name      String?
-  role      Role      @default(VIEWER)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime
-  account   account[]
-  session   session[]
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean
+  image         String?
+  createdAt     DateTime
+  updatedAt     DateTime
+  role          String?   @default("user")
+  initRole      String?
+  permissions   String[]  @default([])
+  banned        Boolean?  @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  
+  accounts      Account[]
+  sessions      Session[]
+  dbConfigs     DbConfig[]
+  invitedById   String?
+
+  @@map("user")
 }
 
-model account {
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String   @unique
+  createdAt      DateTime
+  updatedAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
+
+  @@map("session")
+}
+
+model Account {
   id                    String    @id
   accountId             String
   providerId            String
   userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
   idToken               String?
@@ -65,32 +60,50 @@ model account {
   password              String?
   createdAt             DateTime
   updatedAt             DateTime
-  User                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("account")
 }
 
-model session {
-  id        String   @id
-  expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime
-  updatedAt DateTime
-  ipAddress String?
-  userAgent String?
-  userId    String
-  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model verification {
+model Verification {
   id         String    @id
   identifier String
   value      String
   expiresAt  DateTime
   createdAt  DateTime?
   updatedAt  DateTime?
+
+  @@map("verification")
 }
 
-enum Role {
-  ADMIN
-  DEVELOPER
-  VIEWER
+model DbConfig {
+  id                     String     @id @default(uuid())
+  userId                 String
+  connectionString       String
+  maskedConnectionString String
+  provider               DbProvider
+  isActive               Boolean    @default(true)
+  createdAt              DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("db_config")
+}
+
+enum DbProvider {
+  postgresql
+  mysql
+}
+
+model Invitation {
+  id          String   @id @default(uuid())
+  email       String
+  name        String?
+  role        String
+  permissions String[] @default([])
+  token       String   @unique
+  status      String   @default("pending")
+  inviterId   String?
+  createdAt   DateTime @default(now())
+
+  @@map("invitations")
 }
