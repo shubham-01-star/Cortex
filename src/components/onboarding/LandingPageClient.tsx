@@ -9,11 +9,12 @@ import {
     MoveRight,
     Network,
     Quote,
-    Terminal
+    Terminal,
+    Github
 } from "lucide-react";
 import { OnboardingModal } from "@/components/onboarding/ChatModal";
 import { TamboClientWrapper } from "@/components/tambo/TamboClientWrapper";
-import { useSession } from "@/server/auth/auth-client"; 
+import { useSession } from "@/server/auth/auth-client";
 
 export function LandingPageClient({
     apiKey = "",
@@ -31,7 +32,7 @@ export function LandingPageClient({
             role={(session?.user?.role as "user" | "admin") || "user"}
         >
             <div className="flex min-h-screen flex-col bg-black text-white selection:bg-indigo-500/30 relative overflow-hidden font-sans">
-                
+
                 {/* --- BACKGROUND EFFECTS --- */}
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none opacity-40" />
@@ -45,7 +46,7 @@ export function LandingPageClient({
 
                 {/* --- HERO SECTION --- */}
                 <section className={`flex flex-1 flex-col items-center justify-center space-y-10 px-6 pt-32 pb-16 text-center relative z-10 ${overlay ? 'blur-sm opacity-50 pointer-events-none' : ''}`}>
-                    
+
                     {/* HACKATHON BADGE */}
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900 border border-indigo-500/30 text-indigo-400 text-xs font-mono font-medium uppercase tracking-widest shadow-[0_0_15px_-3px_rgba(99,102,241,0.3)] animate-in fade-in slide-in-from-top-4 duration-700">
                         <Terminal className="w-3 h-3" />
@@ -58,7 +59,7 @@ export function LandingPageClient({
                             CORTEX
                         </h1>
                         <p className="mx-auto max-w-[650px] text-lg md:text-xl text-zinc-400 font-light leading-relaxed">
-                            <span className="text-white font-medium">Stop writing SQL. Start commanding.</span><br/>
+                            <span className="text-white font-medium">Stop writing SQL. Start commanding.</span><br />
                             An identity-aware, visual database interface powered by <span className="text-indigo-400 font-medium">Generative UI</span>.
                         </p>
                     </div>
@@ -89,12 +90,22 @@ export function LandingPageClient({
                             Initialize Cortex
                             <MoveRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </Button>
+
+                        <Button
+                            size="lg"
+                            variant="outline"
+                            onClick={() => window.open('https://github.com/shubham-01-star/Cortex', '_blank')}
+                            className="h-14 px-8 text-base font-bold rounded-full border-zinc-700 bg-zinc-900/50 text-white hover:bg-zinc-800 hover:text-white transition-all active:scale-95 flex items-center gap-2 group"
+                        >
+                            <Github className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                            Star on GitHub
+                        </Button>
                     </div>
                 </section>
 
                 {/* --- FEATURE GRID --- */}
                 <section className={`container mx-auto grid max-w-6xl grid-cols-1 gap-6 px-6 pb-32 md:grid-cols-3 relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500 ${overlay ? 'blur-sm opacity-50 pointer-events-none' : ''}`}>
-                    
+
                     <Card className="bg-zinc-900/40 border-white/5 backdrop-blur-sm hover:bg-zinc-900/60 hover:border-indigo-500/30 transition-all duration-300 group">
                         <CardHeader>
                             <div className="h-10 w-10 rounded-lg bg-indigo-500/10 flex items-center justify-center mb-4 group-hover:bg-indigo-500/20 transition-colors">

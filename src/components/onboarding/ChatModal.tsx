@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useTambo } from "@/hooks/use-tambo";
+import { useTambo } from "@tambo-ai/react";
 import {
     X,
     Sparkles,
@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { tamboComponents } from "@/tambo/config";
 
-// Types for Tambo message parts
 interface MessagePart {
     type: string;
     text?: string;
@@ -110,15 +109,8 @@ export function OnboardingModal({ isOpen, onClose }: { isOpen: boolean; onClose:
     const handleSend = async (text?: string) => {
         const msg = (text || input).trim();
         if (!msg) return;
-
-        try {
-            if (!text) setInput("");
-            await sendThreadMessage(msg);
-        } catch (error) {
-            console.error("❌ [ChatModal] Failed to send message:", error);
-            // Restore input if it failed and was manual
-            if (!text) setInput(msg);
-        }
+        setInput("");
+        await sendThreadMessage(msg);
     };
 
     if (!isOpen) return null;
@@ -224,7 +216,7 @@ export function OnboardingModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                                                     }
 
                                                     const lowerText = trimmed.toLowerCase();
-                                                    const isLoginIntent = lowerText.includes("login") || lowerText.includes("sign in");
+                                                    const isLoginIntent = lowerText.includes("login") || lowerText.includes("sign in") || lowerText.includes("log in");
                                                     const isSignupIntent = lowerText.includes("account") || lowerText.includes("sign up");
 
                                                     if (message.role === 'assistant' && !hasRealComponent && (isLoginIntent || isSignupIntent)) {
@@ -324,6 +316,7 @@ export function OnboardingModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                                 <button
                                     key={action.label}
                                     onClick={() => {
+                                        setInput(action.text);
                                         handleSend(action.text);
                                     }}
                                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-[10px] font-bold text-zinc-400 hover:text-white transition-all whitespace-nowrap"
@@ -349,7 +342,7 @@ export function OnboardingModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                         />
                         <button
                             onClick={() => void handleSend()}
-                            disabled={!input.trim()}
+                            disabled={!input.trim() || streaming}
                             className="bg-white text-black p-2 rounded-full hover:opacity-90 active:scale-95 disabled:opacity-40 transition-all"
                         >
                             <Send size={16} />
