@@ -12,9 +12,11 @@
     "typecheck": "tsc --noEmit",
     "prettier-check": "prettier --check .",
     "db:setup": "node scripts/setup-sqlite.mjs",
-    "postinstall": "node scripts/setup-sqlite.mjs"
+    "postinstall": "node scripts/setup-sqlite.mjs",
+    "mcp-server": "dotenv -e .env -- tsx scripts/mcp-postgres-server.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "@prisma/client": "^6.19.2",
     "@tambo-ai/react": "^0.74.1",
     "@types/d3-array": "^3.2.2",
@@ -51,6 +53,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/d3": "^7.4.3",
+    "@types/express": "^5.0.6",
     "@types/node": "^20",
     "@types/pg": "^8.16.0",
     "@types/react": "^19",
@@ -59,6 +62,7 @@
     "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "express": "^5.2.1",
     "postcss": "^8.5.6",
     "prisma": "^6.19.2",
     "tailwindcss": "^4",

@@ -22,16 +22,9 @@ export function Navbar({ role, userName }: NavbarProps) {
   return (
     <nav className="border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 h-14">
       <div className="max-w-5xl mx-auto px-4 h-full flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Image
-            src="/assets/octo-white-background-rounded.png"
-            alt="Logo"
-            width={32}
-            height={32}
-            className="rounded-lg"
-          />
-          <span className="text-xl font-bold tracking-tight text-white">
-            tambo
+        <div className="flex items-center">
+          <span className="text-2xl font-bold tracking-tight text-white leading-none uppercase">
+            CORTEX
           </span>
         </div>
 

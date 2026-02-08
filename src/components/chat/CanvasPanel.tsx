@@ -207,7 +207,7 @@ export function CanvasPanel() {
     };
 
     return (
-        <div className="h-full w-full bg-zinc-950 flex flex-col relative overflow-hidden">
+        <div className="h-full w-full bg-zinc-950/50 glass-panel flex flex-col relative overflow-hidden m-2 rounded-2xl border border-white/5">
             {/* Background Grid */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
 
