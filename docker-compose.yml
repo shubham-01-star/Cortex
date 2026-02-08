@@ -1,34 +1,17 @@
 services:
   cortex:
-    build: .
-    expose:
-      - "3099"
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - DATABASE_URL=${DATABASE_URL}
+        - BETTER_AUTH_URL=${BETTER_AUTH_URL}
+        - NEXT_PUBLIC_USE_MOCK=${NEXT_PUBLIC_USE_MOCK}
+        - NEXT_PUBLIC_TAMBO_API_KEY=${NEXT_PUBLIC_TAMBO_API_KEY}
+    ports:
+      - "3099:3099"
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
-      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
-      - RESEND_API_KEY=${RESEND_API_KEY}
-      - TRUSTED_ORIGINS=${TRUSTED_ORIGINS}
       - NODE_ENV=production
     restart: always
-    networks:
-      - cortex-network
-
-  nginx:
-    build: ./nginx
-    ports:
-      - "80:80"
-    depends_on:
-      - cortex
-    restart: always
-    networks:
-      - cortex-network
-
-networks:
-  cortex-network:
-    driver: bridge

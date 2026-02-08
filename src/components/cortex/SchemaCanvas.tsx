@@ -52,8 +52,17 @@ const TableNode = ({ data }: { data: TableNodeData }) => {
       </div>
       <div className="p-2 space-y-1">
         {data.fields.map((f) => (
-          <div key={f.name} className="flex justify-between text-xs">
-            <span className={f.isId ? "font-bold text-primary" : ""}>{f.name}</span>
+          <div
+            key={f.name}
+            className="flex justify-between text-xs p-1 rounded hover:bg-white/5 transition-colors group/field"
+            onClick={(e) => {
+              e.stopPropagation();
+              const command = `Show analytics for ${data.label} grouped by ${f.name}`;
+              const event = new CustomEvent('cortexCommand', { detail: command });
+              window.dispatchEvent(event);
+            }}
+          >
+            <span className={f.isId ? "font-bold text-primary" : "group-hover/field:text-indigo-400"}>{f.name}</span>
             <span className="text-muted-foreground">{f.type}</span>
           </div>
         ))}
