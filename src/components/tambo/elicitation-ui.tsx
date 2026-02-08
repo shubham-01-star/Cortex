@@ -5,6 +5,7 @@ import {
   type TamboElicitationRequest,
   type TamboElicitationResponse,
 } from "@tambo-ai/react/mcp";
+import { Eye, EyeOff } from "lucide-react";
 import * as React from "react";
 import { useMemo, useState } from "react";
 
@@ -134,6 +135,7 @@ const StringField: React.FC<FieldProps> = ({
   validationError,
 }) => {
   const inputId = React.useId();
+  const [showPassword, setShowPassword] = useState(false);
 
   if (schema.type !== "string") {
     return null;
@@ -142,7 +144,10 @@ const StringField: React.FC<FieldProps> = ({
 
   // Map JSON Schema format to HTML5 input type
   const getInputType = (): string => {
-    const format = "format" in schema ? schema.format : undefined;
+    const format = ("format" in schema ? schema.format : undefined) as string | undefined;
+    if (format === "password" || name.toLowerCase().includes("password")) {
+      return "password";
+    }
     switch (format) {
       case "email":
         return "email";
@@ -160,6 +165,8 @@ const StringField: React.FC<FieldProps> = ({
   const inputType = getInputType();
   const hasError = !!validationError;
   const errorId = `${inputId}-error`;
+  const isPasswordField = inputType === "password";
+  const effectiveType = isPasswordField ? (showPassword ? "text" : "password") : inputType;
 
   return (
     <div className="space-y-2">
@@ -167,25 +174,38 @@ const StringField: React.FC<FieldProps> = ({
         {schema.description ?? name}
         {required && <span className="text-destructive ml-1">*</span>}
       </label>
-      <input
-        id={inputId}
-        type={inputType}
-        autoFocus={autoFocus}
-        value={stringValue}
-        onChange={(e) => onChange(e.target.value)}
-        className={cn(
-          "w-full px-2.5 py-1.5 text-xs rounded-md border bg-white/5 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all",
-          hasError
-            ? "border-destructive/50 focus:ring-destructive"
-            : "border-white/10 focus:ring-indigo-500",
+      <div className="relative group">
+        <input
+          id={inputId}
+          type={effectiveType}
+          autoFocus={autoFocus}
+          value={stringValue}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn(
+            "w-full px-2.5 py-1.5 text-xs rounded-md border bg-white/5 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all",
+            hasError
+              ? "border-destructive/50 focus:ring-destructive"
+              : "border-white/10 focus:ring-indigo-500",
+            isPasswordField && "pr-9"
+          )}
+          placeholder={schema.description ?? name}
+          minLength={"minLength" in schema ? schema.minLength : undefined}
+          maxLength={"maxLength" in schema ? schema.maxLength : undefined}
+          required={required}
+          aria-invalid={hasError || undefined}
+          aria-describedby={hasError ? errorId : undefined}
+        />
+        {isPasswordField && (
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-500 hover:text-zinc-300 transition-colors"
+            title={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
         )}
-        placeholder={schema.description ?? name}
-        minLength={"minLength" in schema ? schema.minLength : undefined}
-        maxLength={"maxLength" in schema ? schema.maxLength : undefined}
-        required={required}
-        aria-invalid={hasError || undefined}
-        aria-describedby={hasError ? errorId : undefined}
-      />
+      </div>
       {validationError && (
         <p id={errorId} className="text-xs text-destructive" aria-live="polite">
           {validationError}
@@ -564,60 +584,66 @@ export const ElicitationUI: React.FC<ElicitationUIProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-col rounded-lg bg-white/[0.02] border border-white/10 p-3 space-y-3",
+        "flex flex-col w-full bg-zinc-900 border border-white/5 rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-500",
         className,
       )}
     >
-      <div className="text-xs font-bold text-indigo-400/90 uppercase tracking-tight">
-        {request.message}
+      {/* Header/Message Section */}
+      <div className="px-4 py-3 bg-white/[0.02]">
+        <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-bold text-center">
+          System Request
+        </p>
       </div>
-      <div className="space-y-3">
-        {fields.map(([name, schema], index) => {
-          const validationError = touchedFields.has(name)
-            ? getValidationError(
-              formData[name],
-              schema,
-              requiredFields.includes(name),
-            )
-            : null;
 
-          return (
-            <Field
-              key={name}
-              name={name}
-              schema={schema}
-              value={formData[name]}
-              onChange={(value) => handleFieldChange(name, value)}
-              required={requiredFields.includes(name)}
-              autoFocus={index === 0}
-              validationError={validationError}
-            />
-          );
-        })}
-      </div>
-      <div className="flex justify-end gap-2 pt-1">
-        <button
-          type="button"
-          onClick={handleCancel}
-          className="px-3 py-1 text-[10px] font-medium rounded-md border border-white/5 text-zinc-500 hover:bg-white/5 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleDecline}
-          className="px-3 py-1 text-[10px] font-medium rounded-md border border-white/5 text-zinc-500 hover:bg-white/5 transition-colors"
-        >
-          Decline
-        </button>
-        <button
-          type="button"
-          onClick={handleAccept}
-          disabled={!isValid}
-          className="px-4 py-1 text-[10px] font-bold rounded-md bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-500/20"
-        >
-          Submit
-        </button>
+      <hr className="border-white/5" />
+
+      <div className="p-4 flex flex-col gap-4">
+        <div className="text-[10px] font-bold text-indigo-400/90 uppercase tracking-widest text-center opacity-70">
+          {request.message}
+        </div>
+
+        <div className="space-y-4">
+          {fields.map(([name, schema], index) => {
+            const validationError = touchedFields.has(name)
+              ? getValidationError(
+                formData[name],
+                schema,
+                requiredFields.includes(name),
+              )
+              : null;
+
+            return (
+              <Field
+                key={name}
+                name={name}
+                schema={schema}
+                value={formData[name]}
+                onChange={(value) => handleFieldChange(name, value)}
+                required={requiredFields.includes(name)}
+                autoFocus={index === 0}
+                validationError={validationError}
+              />
+            );
+          })}
+        </div>
+
+        <div className="flex justify-stretch pt-2">
+          <button
+            type="button"
+            onClick={handleAccept}
+            disabled={!isValid}
+            className="w-full py-2.5 text-xs font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
+          >
+            {(() => {
+              const msg = request.message.toLowerCase();
+              if (msg.includes("sign up")) return "Create Account";
+              if (msg.includes("login") || msg.includes("sign in")) return "Sign In";
+              if (msg.includes("database") || msg.includes("connect")) return "Connect Database";
+              if (msg.includes("save") || msg.includes("confirm")) return "Save";
+              return "Submit";
+            })()}
+          </button>
+        </div>
       </div>
     </div>
   );

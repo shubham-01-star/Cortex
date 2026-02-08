@@ -1,7 +1,7 @@
 "use client";
 
 import { Shield, Mail, Calendar, Settings, ChevronRight } from "lucide-react";
-import { useSession } from "@/lib/auth-client";
+import { useSession } from "@/server/auth/auth-client";
 
 export function UserCard() {
   const { data: session } = useSession();
@@ -45,11 +45,10 @@ export function UserCard() {
             </h3>
             <div className="flex items-center gap-2 mt-1">
               <span
-                className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border transition-all duration-300 ${
-                  userRole === "admin"
+                className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border transition-all duration-300 ${userRole === "admin"
                     ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
                     : "bg-zinc-800 text-zinc-400 border-zinc-700"
-                }`}
+                  }`}
               >
                 {userRole}
               </span>

@@ -1,9 +1,10 @@
 "use client";
 
-import { authClient } from "@/lib/auth-client";
+import { authClient } from "@/server/auth/auth-client";
 import { LogOut } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { SuggestionsDropdown } from "@/components/tambo/SuggestionsDropdown";
 
 interface NavbarProps {
   role: "admin" | "user";
@@ -35,12 +36,17 @@ export function Navbar({ role, userName }: NavbarProps) {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* ... (inside Navbar) */}
+
           <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
             <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
             <span className="text-xs font-medium text-zinc-400">
               {role === "admin" ? "Administrator" : "User"}
             </span>
           </div>
+
+          {/* Suggestions Dropdown */}
+          <SuggestionsDropdown role={role} />
 
           <div className="h-4 w-[1px] bg-white/10 mx-1" />
 

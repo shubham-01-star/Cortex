@@ -5,6 +5,8 @@ import { InviteForm } from "@/components/cortex/InviteForm";
 import { SchemaCanvas } from "@/components/cortex/SchemaCanvas";
 import { SmartTable } from "@/components/cortex/SmartTable";
 import { SmartChart } from "@/components/cortex/SmartChart";
+import { MermaidEmbed } from "@/components/cortex/MermaidEmbed";
+import { EraserEmbed } from "@/components/cortex/EraserEmbed"; // Keep for legacy if needed, or remove
 import { MigrationForm } from "@/components/cortex/MigrationForm";
 import { GhostModeModal } from "@/components/cortex/GhostModeModal";
 import { StatusCard } from "@/components/cortex/StatusCard";
@@ -48,6 +50,17 @@ export const tamboComponents = [
         propsSchema: z.object({ message: z.string(), action: z.string() }),
     },
     {
+        name: "elicitation",
+        description: "Renders generic elicitation form",
+        component: ElicitationUI,
+        viewType: "IDLE",
+        propsSchema: z.object({
+            message: z.string().optional(),
+            requestedSchema: z.any(),
+            signal: z.any().optional(),
+        }),
+    },
+    {
         name: "help",
         description: "Renders help choices",
         component: ElicitationUI,
@@ -62,12 +75,13 @@ export const tamboComponents = [
     {
         name: "setup_database",
         description: "Renders DB connection form",
-        component: ElicitationUI,
-        viewType: 'DB_CONNECT',
+        component: DbConnectForm,
+        viewType: 'IDLE',
         propsSchema: z.object({
-            message: z.string(),
-            requestedSchema: z.any(),
+            message: z.string().optional(),
+            requestedSchema: z.any().optional(),
             signal: z.any().optional(),
+            success: z.boolean().optional(),
         }),
     },
     {
@@ -76,7 +90,8 @@ export const tamboComponents = [
         component: StatusCard,
         viewType: 'IDLE',
         propsSchema: z.object({
-            status: z.enum(["connected", "connecting", "error"]),
+            status: z.string().describe("Status: connected, connecting, or error"),
+            // status: z.enum(["connected", "connecting", "error"]), // Relaxed to z.string to prevent crashes
             message: z.string().optional(),
             provider: z.string().optional(),
         }),
@@ -86,12 +101,13 @@ export const tamboComponents = [
         name: "invite_user",
         description: "Renders Invite Team form",
         component: InviteForm,
-        viewType: 'INVITE',
+        viewType: 'IDLE',
         propsSchema: z.object({
             name: z.string().optional(),
             email: z.string().optional(),
             role: z.string().optional(),
             position: z.string().optional(),
+            permissions: z.array(z.string()).optional(),
             status: z.string().optional(),
         }),
     },
@@ -112,8 +128,8 @@ export const tamboComponents = [
         component: SchemaCanvas,
         viewType: 'SCHEMA',
         propsSchema: z.object({
-            nodes: z.array(z.any()),
-            edges: z.array(z.any())
+            nodes: z.array(z.any()).default([]),
+            edges: z.array(z.any()).default([]),
         }),
     },
     {
@@ -122,7 +138,10 @@ export const tamboComponents = [
         component: SmartTable,
         viewType: 'TABLE',
         propsSchema: z.object({
-            data: z.array(z.any())
+            title: z.string().default("Data"),
+            tableName: z.string().default("Table"),
+            data: z.array(z.any()).default([]),
+            columns: z.array(z.string()).optional()
         }),
     },
     {
@@ -130,13 +149,16 @@ export const tamboComponents = [
         description: "Renders chart visualization",
         component: SmartChart,
         viewType: 'CHART',
+        propsSchema: z.any(),
+    },
+    {
+        name: "visualize_architecture",
+        description: "Renders Mermaid.js diagram",
+        component: MermaidEmbed,
+        viewType: 'DIAGRAM',
         propsSchema: z.object({
-            title: z.string(),
-            data: z.array(z.any()),
-            type: z.enum(["bar", "line"]).optional(),
-            xAxisKey: z.string(),
-            dataKey: z.string(),
-            description: z.string().optional()
+            dslCode: z.string(),
+            role: z.string().optional(),
         }),
     },
     {
@@ -159,6 +181,9 @@ export const tamboComponents = [
             status: z.string(),
             actionSummary: z.string().optional(),
             isOpen: z.boolean().optional(),
+            model: z.string().optional(),
+            action: z.string().optional(),
+            id: z.string().optional(),
             message: z.string().optional()
         }),
     },

@@ -5,24 +5,26 @@ import { createTools, tamboComponents } from "@/tambo/tools";
 
 import { useMemo } from "react";
 
+import { MockTamboProvider } from "@/components/tambo/MockTamboProvider";
+
 interface TamboClientWrapperProps {
   children: React.ReactNode;
   apiKey: string;
-  userToken: string;
   role: "admin" | "user";
 }
 
 export function TamboClientWrapper({
   children,
   apiKey,
-  userToken,
   role,
 }: TamboClientWrapperProps) {
+  const useMock = process.env.NEXT_PUBLIC_USE_MOCK === "true";
+
   console.log("🎯 [TamboClientWrapper] Initializing Tambo with:", {
     hasApiKey: !!apiKey,
     apiKeyLength: apiKey?.length,
-    userToken,
     role,
+    useMock
   });
 
   // Generate tools with baked-in role security
@@ -34,14 +36,21 @@ export function TamboClientWrapper({
     return tools;
   }, [role]);
 
-  console.log("🚀 [TamboClientWrapper] Rendering TamboProvider...");
+  if (useMock) {
+    return (
+      <MockTamboProvider>
+        {children}
+      </MockTamboProvider>
+    );
+  }
+
+  console.log("🚀 [TamboClientWrapper] Rendering Real TamboProvider...");
 
   return (
     <TamboProvider
       apiKey={apiKey}
       tools={activeTools}
       components={tamboComponents as TamboComponent[]}
-      userToken={userToken}
     >
       {children}
     </TamboProvider>

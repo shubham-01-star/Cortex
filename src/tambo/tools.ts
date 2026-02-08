@@ -10,7 +10,10 @@ import {
   fetchBusinessData,
   visualizeAnalytics,
   modifySchema, // Imported
-} from "@/actions/cortex-tools";
+  denyUnlessPermission, // Imported
+  type ReactFlowNode,
+  type ReactFlowEdge
+} from "@/server/actions/cortex-tools";
 
 import { SchemaCanvas } from "@/components/cortex/SchemaCanvas";
 import { SmartTable } from "@/components/cortex/SmartTable";
@@ -69,10 +72,10 @@ export function createTools(role: "admin" | "user") {
       outputSchema: z.any(),
       tool: async (params) => {
         if (params.email && params.password) {
-          return { success: true, message: "Access granted. Opening Cortex...", action: "AUTH_PROCESS" };
+          return { success: true, message: "Logged in successfully. Opening Cortex...", action: "AUTH_PROCESS" };
         }
         return {
-          message: "Identify yourself to access the mainframe.",
+          message: "Please enter your email and password to log in.",
           requestedSchema: {
             type: "object",
             properties: {
@@ -96,10 +99,10 @@ export function createTools(role: "admin" | "user") {
       outputSchema: z.any(),
       tool: async (params) => {
         if (params.name && params.email && params.password) {
-          return { success: true, message: "Protocol initialized. Access granted. Opening Cortex...", action: "AUTH_PROCESS" };
+          return { success: true, message: "Account created successfully. Opening Cortex...", action: "AUTH_PROCESS" };
         }
         return {
-          message: "Register your identity to join the fleet.",
+          message: "Please fill in your details to create a new account.",
           requestedSchema: {
             type: "object",
             properties: {
@@ -120,7 +123,7 @@ export function createTools(role: "admin" | "user") {
       outputSchema: z.object({ message: z.string(), action: z.string() }),
       tool: async () => {
         return {
-          message: "Welcome Commander. Identify yourself to access the mainframe.",
+          message: "Welcome to Cortex. Please log in or sign up to continue.",
           action: "CHOOSE_AUTH"
         };
       }
@@ -178,7 +181,7 @@ export function createTools(role: "admin" | "user") {
       tool: async (params) => {
         // If we have the required fields, save it!
         if (params.provider && params.database) {
-          const { saveConnection } = await import("@/actions/connection-tools");
+          const { saveConnection } = await import("@/server/actions/connection-tools");
           return await saveConnection(params as any);
         }
 
@@ -227,11 +230,11 @@ export function createTools(role: "admin" | "user") {
         role: z.enum(["ADMIN", "DEVELOPER", "VIEWER"]).optional(),
         position: z.string().optional(),
       }),
-      outputSchema: z.object({ status: z.string() }),
+      outputSchema: z.any(),
       tool: async (params) => {
         // We simply return the params so they can be passed as props to the InviteForm
         // The UI component will handle the actual submission via Server Action
-        return { ...params, status: "form_ready" };
+        return { ...params, component: "invite_user", status: "form_ready" };
       }
     }),
 
@@ -242,44 +245,168 @@ export function createTools(role: "admin" | "user") {
       name: "visualize_schema",
       description: "Visualizes the database schema structure (tables and relationships).",
       inputSchema: visualizeSchemaInput,
-      outputSchema: z.object({ nodes: z.array(z.any()), edges: z.array(z.any()) }),
-      tool: async (params) => { // params used
+      outputSchema: z.any(),
+      tool: async (params) => {
         // Call Server Action
+        const denied = await denyUnlessPermission("READ");
+        if (denied) throw new Error(denied.message);
+
         const result = await visualizeSchema(params); // Passed params
         if (result.error) {
           throw new Error(result.error);
         }
-        return { nodes: result.nodes, edges: result.edges };
+        return { nodes: result.nodes ?? [], edges: result.edges ?? [], component: "visualize_schema" };
       },
     }),
 
-    // 2. Fetch Business Data
+    // 2. Visualize Architecture (Open Source - Mermaid.js)
     defineTool({
-      name: "fetch_business_data",
-      description: "Safely fetches business data (Orders, Customers). Admin only.",
-      inputSchema: fetchBusinessDataInput,
-      outputSchema: z.object({ data: z.array(z.any()) }),
+      name: "visualize_architecture",
+      description: "Generates a high-level architecture or ERD diagram using Mermaid.js syntax. Use this when the user asks for 'architecture', 'system design', or specific role-based views (CTO, Sales).",
+      inputSchema: z.object({
+        role: z.enum(["Developer", "CTO", "CEO", "Sales"]).optional().describe("The persona to generate the diagram for"),
+        focus: z.enum(["Database", "Auth", "System"]).optional().describe("The specific module to visualize"),
+      }),
+      outputSchema: z.object({
+        dslCode: z.string(),
+        role: z.string(),
+      }),
       tool: async (params) => {
-        // Call Server Action
-        const result = await fetchBusinessData(params.entity, params.limit);
+        const role = params.role || "Developer";
 
-        if (result.status === "denied") {
-          throw new Error(result.message);
+        let dsl = "";
+
+        // Heuristic: In Cortex, 'Role' often equates to 'Position' (e.g. CTO, Sales)
+        // We visualize the system based on these "Lenses".
+
+        if (role === "Developer") {
+          // ... (Keep existing Developer logic: Real Schema ERD)
+          try {
+            const schemaResult = await visualizeSchema({});
+            if (schemaResult.error) {
+              dsl = `graph TD;\nError[Error: ${schemaResult.error}]`;
+            } else {
+              dsl = "erDiagram\n";
+              (schemaResult.nodes as ReactFlowNode[]).forEach((node: ReactFlowNode) => {
+                const tableName = node.data.label;
+                dsl += `  ${tableName} {\n`;
+                node.data.fields.forEach((field: { name: string; type: string; isId: boolean }) => {
+                  const type = field.type || "string";
+                  const key = field.isId ? "PK" : "";
+                  const cleanType = type.replace(/[^a-zA-Z0-9]/g, "");
+                  dsl += `    ${cleanType} ${field.name} ${key}\n`;
+                });
+                dsl += `  }\n`;
+              });
+              (schemaResult.edges as ReactFlowEdge[]).forEach((edge: ReactFlowEdge) => {
+                dsl += `  ${edge.source} ||--o{ ${edge.target} : "related_to"\n`;
+              });
+              if (schemaResult.nodes.length === 0) dsl = `graph TD;\nEmpty[No Tables Found];`;
+            }
+          } catch (err) { dsl = `graph TD;\nError[Failed to fetch schema]`; }
+
+        } else if (role === "CTO") {
+          // CTO View: High-Level Architecture & Permissions
+          // Visualizing who has access to what (Role-Based Access Control)
+          dsl = `
+            graph TD
+              subgraph "User Roles (Positions)"
+                Admin[Admin / CTO]
+                Dev[Developer]
+                Viewer[Sales / Viewer]
+              end
+              
+              subgraph "System Resources"
+                DB[(Database Production)]
+                Settings[System Settings]
+                Logs[Audit Logs]
+                API[API Access]
+              end
+
+              %% Permissions Data Flow
+              Admin ==>|Full Access| DB
+              Admin ==>|Manage| Settings
+              
+              Dev -->|Read/Write| DB
+              Dev -->|View| Logs
+              
+              Viewer -.->|Read Only| DB
+              Viewer -.->|No Access| Settings
+
+              style Admin fill:#ef4444,stroke:#fff,stroke-width:2px,color:#fff
+              style DB fill:#4f46e5,stroke:#fff,stroke-width:2px,color:#fff
+            `;
+        } else if (role === "Sales") {
+          // Sales View: Customer Journey Flow
+          dsl = `
+            sequenceDiagram
+              participant Lead as Potential Customer
+              participant Sales as Sales Rep
+              participant System as Cortex System
+              participant DB as Database
+              
+              Lead->>System: Signs Up (Role: User)
+              System->>DB: Create User Record
+              System->>Sales: Notify New Lead
+              Sales->>Lead: Schedule Demo
+              Lead->>System: Upgrades to Pro
+              System->>DB: Update Status = Active
+              System->>Sales: Commission Recorded!
+            `;
+        } else {
+          dsl = `graph TD; A[Start] --> B[Limit Reached];`;
         }
 
-        if (result.status === "error") {
-          throw new Error(result.message);
+        return {
+          dslCode: dsl,
+          role: role
+        };
+      }
+    }),
+
+
+    // 2. Fetch Business Data (Dynamic & Generic)
+    defineTool({
+      name: "fetch_business_data", // Keeping name same for config compatibility, but logic is dynamic
+      description: "Fetches data from ANY database table (e.g. 'users', 'orders', 'products'). Use this when user asks to see records.",
+      inputSchema: z.object({
+        entity: z.string().describe("Table name to fetch from (e.g. 'User', 'Order')"),
+        limit: z.number().optional()
+      }),
+      outputSchema: z.any(),
+      tool: async (params) => {
+        const denied = await denyUnlessPermission("READ");
+        if (denied) throw new Error(denied.message);
+
+        // Use the DYNAMIC service which works for any table
+        const { fetchDynamicBusinessData } = await import("@/server/actions/cortex-tools");
+
+        const result = await fetchDynamicBusinessData(params.entity, params.limit);
+
+        if (result.status === "denied" || result.status === "error") {
+          // Dynamic fetch failed - throw error to let AI handle it or retry
+          throw new Error(result.message || "Failed to fetch data");
         }
 
-        return { data: result.data };
+        return {
+          data: result.data ?? [],
+          title: params.entity ?? "Unknown Table", // Maps to SmartTable 'title' prop
+          tableName: params.entity ?? "Unknown Table", // For debugging/context
+          component: "fetch_business_data"
+        };
       },
     }),
 
     // 2b. Visualize Analytics (Generative Charts)
     defineTool({
       name: "visualize_analytics",
-      description: "Generates visual charts for key business metrics.",
-      inputSchema: visualizeAnalyticsInput,
+      description: "Generates visual charts from any database table. YOU MUST determine the table and columns from the schema first. Do not guess.",
+      inputSchema: z.object({
+        tableName: z.string().describe("The name of the table to query (e.g. 'Orders')"),
+        xAxisColumn: z.string().describe("Column for X-Axis (e.g. 'created_at', 'category')"),
+        yAxisColumn: z.string().describe("Column for Y-Axis (e.g. 'amount', 'score')"),
+        operation: z.enum(["sum", "count"]).optional().describe("Aggregation type. Default is 'sum'."),
+      }),
       outputSchema: z.object({
         title: z.string(),
         data: z.array(z.any()),
@@ -289,7 +416,15 @@ export function createTools(role: "admin" | "user") {
         description: z.string().optional()
       }),
       tool: async (params) => {
-        const result = await visualizeAnalytics(params.metric, params.period);
+        const denied = await denyUnlessPermission("READ");
+        if (denied) throw new Error(denied.message);
+
+        const result = await visualizeAnalytics(
+          params.tableName,
+          params.xAxisColumn,
+          params.yAxisColumn,
+          params.operation
+        );
 
         if (result.status === "denied") throw new Error(result.message);
         if (result.status === "error") throw new Error(result.message);
@@ -313,7 +448,8 @@ export function createTools(role: "admin" | "user") {
         message: z.string().optional()
       }),
       tool: async (params) => {
-        if (role !== "admin") return { status: "denied", message: "Access Denied: Admin role required." };
+        const denied = await denyUnlessPermission("WRITE");
+        if (denied) return { status: "denied", message: denied.message };
 
         const result = await modifySchema(params.tableName, params.columns, params.action);
 
@@ -337,9 +473,9 @@ export function createTools(role: "admin" | "user") {
       }),
       tool: async (params) => {
         // 🔐 RBAC CHECK (Client Side Pre-Check)
-        if (role !== "admin") {
-          return { status: "denied", message: "Access Denied: Admin role required." };
-        }
+        const requiredPerm = params.action === "delete" ? "DELETE" : "WRITE";
+        const denied = await denyUnlessPermission(requiredPerm);
+        if (denied) return { status: "denied", message: denied.message };
 
         // Return "Confirmation Needed" state to trigger Ghost Mode Modal
         // Map requiresConfirmation -> isOpen for the component
