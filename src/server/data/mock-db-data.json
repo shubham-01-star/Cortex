@@ -1,0 +1,67 @@
+{
+    "users": [
+        {
+            "id": "usr_admin_001",
+            "name": "Admin User",
+            "email": "admin@cortex.dev",
+            "role": "admin",
+            "createdAt": "2023-01-01T00:00:00Z"
+        }
+    ],
+    "schemas": {
+        "default": [
+            {
+                "tableName": "Users",
+                "columns": [
+                    {
+                        "name": "id",
+                        "type": "UUID",
+                        "isId": true
+                    },
+                    {
+                        "name": "email",
+                        "type": "VARCHAR(255)",
+                        "isId": false
+                    },
+                    {
+                        "name": "password",
+                        "type": "VARCHAR(255)",
+                        "isId": false
+                    }
+                ]
+            },
+            {
+                "tableName": "Orders",
+                "columns": [
+                    {
+                        "name": "id",
+                        "type": "UUID",
+                        "isId": true
+                    },
+                    {
+                        "name": "amount",
+                        "type": "DECIMAL",
+                        "isId": false
+                    },
+                    {
+                        "name": "userId",
+                        "type": "UUID",
+                        "isId": false
+                    }
+                ]
+            }
+        ]
+    },
+    "orders": [
+        {
+            "id": "ord_001",
+            "amount": 100,
+            "status": "COMPLETED"
+        },
+        {
+            "id": "ord_002",
+            "amount": 200,
+            "status": "PENDING"
+        }
+    ]
+}
