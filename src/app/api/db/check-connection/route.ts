@@ -3,6 +3,8 @@ import { prisma } from '@/server/db/prisma';
 import { auth } from '@/server/auth/auth';
 import { headers } from 'next/headers';
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
     try {
         const session = await auth.api.getSession({
@@ -18,7 +20,7 @@ export async function GET() {
             select: { invitedById: true }
         });
 
-        const effectiveUserId = (user as any)?.invitedById || session.user.id;
+        const effectiveUserId = user?.invitedById || session.user.id;
 
         // Check if any active DB connection exists for this user (or their inviter)
         const dbConfig = await prisma.dbConfig.findFirst({
